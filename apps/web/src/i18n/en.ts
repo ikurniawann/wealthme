@@ -2339,6 +2339,7 @@ export const en = {
       elektronik: "Electronics",
       perhiasan: "Jewelry",
       emas: "Gold",
+      seni_koleksi: "Art & collectibles",
       lainnya: "Other",
     },
     accountTypeLabels: {

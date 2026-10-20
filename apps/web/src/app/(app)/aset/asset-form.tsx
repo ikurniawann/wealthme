@@ -29,9 +29,17 @@ import { ModelField } from "./asset-form-fields";
 import {
   CategoryChip,
   CategoryGrid,
-  composeDetails,
+  detailValuesOf,
+  detailsBody,
   type DetailValues,
 } from "./asset-form-category";
+import {
+  CostField,
+  OwnerField,
+  ValuationMetaFields,
+  createExtras,
+  useCreateFields,
+} from "./asset-form-create";
 import {
   AcquisitionSection,
   FormSection,
@@ -52,8 +60,9 @@ const NOTES_MAX = 500;
  * Add / edit a physical asset (POST / PATCH /assets). Category first (step
  * 1 tile grid), then grouped sections and a live Pratinjau. Edit sends
  * `currentValue` only when it changed: an unchanged value must not write a
- * new valuation row. Category specifications have no field in the asset
- * contract, so on create they are prepended to `notes`.
+ * new valuation row. Category specifications go to `details` (validated
+ * per category by the API); create also sends Pemilik, Harga perolehan and
+ * the opening valuation's date and source.
  */
 export function AssetFormDialog({
   familyGroupId,
@@ -106,7 +115,10 @@ export function AssetFormDialog({
   const needsQty = !editing && model === "per_unit";
   const [code, setCode] = useState(editing?.internalCode ?? "");
   const [custodian, setCustodian] = useState(editing?.custodian ?? "");
-  const [details, setDetails] = useState<DetailValues>({});
+  const [details, setDetails] = useState<DetailValues>(() =>
+    detailValuesOf(editing?.details),
+  );
+  const extras = useCreateFields(familyGroupId, !editing);
   const [goldPrefill, setGoldPrefill] = useState(false);
 
   const mutation = useAssetSave({
@@ -146,13 +158,15 @@ export function AssetFormDialog({
   const qtyClean = quantity.trim().replace(",", ".");
   const qtyValid =
     needsQty && QTY_RE.test(qtyClean) && Number(qtyClean) > 0 ? qtyClean : null;
-  const specText = editing ? "" : composeDetails(type, details, f.detail);
-  const finalNotes = [specText, notes.trim()].filter(Boolean).join("\n\n");
+  const finalNotes = notes.trim();
+  const create = editing ? null : createExtras(extras, acquisitionDate);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (step !== "form") return;
-    if (anyMoneyPending(valueField, changeField)) {
+    if (
+      anyMoneyPending(valueField, changeField, editing ? null : extras.cost)
+    ) {
       toast.error(t.money.rateNotReady);
       return;
     }
@@ -167,6 +181,7 @@ export function AssetFormDialog({
       setQtyError(err);
       if (err) return;
     }
+    if (create?.dateError) return;
     if (finalNotes.length > NOTES_MAX) {
       setNotesError(f.notesTooLong);
       setNotesOpen(true);
@@ -197,9 +212,14 @@ export function AssetFormDialog({
           ...(needsQty ? { quantity: qtyClean } : {}),
           internalCode: opt(code),
           custodian: opt(custodian),
+          details: detailsBody(type, details) ?? (editing ? null : undefined),
+          ...(create?.body ?? {}),
         },
         [
           ...(valueChanged ? ([["currentValue", valueField]] as const) : []),
+          ...(create?.body.acquisitionCost
+            ? ([["acquisitionCost", extras.cost]] as const)
+            : []),
           ...(mode === "fixed"
             ? ([["valueChangeAmount", changeField]] as const)
             : []),
@@ -254,6 +274,7 @@ export function AssetFormDialog({
                         custodian={custodian}
                         onCustodian={setCustodian}
                       />
+                      {!editing && <OwnerField s={extras} />}
                     </FormSection>
                     <FormSection
                       icon={Coins}
@@ -282,6 +303,16 @@ export function AssetFormDialog({
                         qty={qtyValid}
                         unit={unit}
                       />
+                      {create && (
+                        <>
+                          <CostField field={extras.cost} />
+                          <ValuationMetaFields
+                            s={extras}
+                            acquisitionDate={acquisitionDate}
+                            dateError={create.dateError}
+                          />
+                        </>
+                      )}
                     </FormSection>
                   </div>
                   <div className="as4f-col">
@@ -294,6 +325,16 @@ export function AssetFormDialog({
                       initialValue={editing ? initialValue : null}
                       acquisitionDate={acquisitionDate}
                       projected={projected}
+                      cost={
+                        create
+                          ? {
+                              digits: extras.costDigits,
+                              isFx: extras.cost.currency !== "IDR",
+                              valuationDate: extras.valuationDate,
+                              source: extras.source,
+                            }
+                          : null
+                      }
                     />
                     <FormSection
                       icon={CalendarDays}
@@ -324,9 +365,7 @@ export function AssetFormDialog({
                           setNotes(v);
                           if (notesError) setNotesError(null);
                         }}
-                        notesMax={
-                          NOTES_MAX - (specText ? specText.length + 2 : 0)
-                        }
+                        notesMax={NOTES_MAX}
                         notesError={notesError}
                         notesOpen={notesOpen}
                         onNotesOpen={setNotesOpen}

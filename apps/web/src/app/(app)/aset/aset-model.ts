@@ -6,6 +6,7 @@ import {
   ChartPie,
   Coins,
   Gem,
+  Palette,
   House,
   Landmark,
   Laptop,
@@ -259,6 +260,7 @@ const ICONS: Record<string, LucideIcon> = {
   "assets:elektronik": Laptop,
   "assets:perhiasan": Gem,
   "assets:emas": Coins,
+  "assets:seni_koleksi": Palette,
   "assets:lainnya": Package,
 };
 const CLASS_ICONS: Record<AssetClass, LucideIcon> = {

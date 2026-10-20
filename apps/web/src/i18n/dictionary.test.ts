@@ -262,6 +262,7 @@ describe("i18n dictionary key parity", () => {
       "elektronik",
       "perhiasan",
       "emas",
+      "seni_koleksi",
       "lainnya",
     ] as const;
     for (const key of assetTypeIds) {

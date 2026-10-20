@@ -21,6 +21,7 @@ import { DetailHeader, type DetailAction } from "./detail-header";
 import { CalculationCard, ValueChart } from "./detail-summary";
 import { HistoryCard, TransactionsCard } from "./detail-history";
 import { DocumentsCard } from "./detail-documents";
+import { SpecsCard } from "./detail-specs";
 import { ValueDrawer } from "./value-drawer";
 import { TradeDrawer } from "./trade-drawer";
 import "./detail.css";
@@ -222,6 +223,7 @@ function AssetDetail() {
               <ValueChart ledger={L} />
               <CalculationCard ledger={L} unit={unit} />
             </div>
+            <SpecsCard asset={asset} />
             <HistoryCard events={L.events} unit={unit} />
             {asset.notes && (
               <section className="ad-card ad-notes">

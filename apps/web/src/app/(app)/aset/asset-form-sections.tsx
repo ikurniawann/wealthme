@@ -237,18 +237,11 @@ export function AcquisitionSection(props: {
         <span className="hint">{t.aset.fieldAcquisitionDateHelper}</span>
       </div>
       <Fold title={f.moreDetails} hint={f.moreDetailsHint}>
-        {!props.isEdit && (
-          <>
-            <DetailFields
-              type={props.type}
-              values={props.details}
-              onChange={props.onDetail}
-            />
-            {props.type !== "lainnya" && (
-              <span className="hint">{f.detailsSaved}</span>
-            )}
-          </>
-        )}
+        <DetailFields
+          type={props.type}
+          values={props.details}
+          onChange={props.onDetail}
+        />
         <div className="as4f-pair">
           <TextField
             id="asset-code"

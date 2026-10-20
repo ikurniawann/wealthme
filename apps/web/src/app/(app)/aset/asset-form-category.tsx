@@ -1,9 +1,12 @@
 "use client";
 
 import { createElement } from "react";
-import type { AssetTypeId } from "@wealthme/contracts";
+import {
+  ASSET_CERTIFICATE_TYPES,
+  type AssetDetailKey,
+  type AssetTypeId,
+} from "@wealthme/contracts";
 import { useLocale } from "@/hooks/use-locale";
-import type { AsetFormCopy } from "@/i18n/aset-form";
 import { rowIcon } from "./aset-model";
 
 export const ASSET_TYPES = [
@@ -12,6 +15,7 @@ export const ASSET_TYPES = [
   "emas",
   "perhiasan",
   "elektronik",
+  "seni_koleksi",
   "lainnya",
 ] as const satisfies readonly AssetTypeId[];
 
@@ -93,10 +97,7 @@ export function CategoryChip({
   );
 }
 
-type DetailKey = keyof Omit<
-  AsetFormCopy["detail"],
-  "choose" | "certificateOther"
->;
+type DetailKey = Exclude<AssetDetailKey, "address">;
 interface DetailSpec {
   key: DetailKey;
   input?: "text" | "decimal" | "year" | "date";
@@ -104,24 +105,24 @@ interface DetailSpec {
   placeholder?: string;
 }
 
-const CERTIFICATES = ["SHM", "HGB", "SHMSRS", "Girik / AJB"] as const;
 const PURITIES = ["24K (999,9)", "23K", "22K", "18K"] as const;
 
 /**
- * Category specifications. The asset contract has no structured home for
- * them (see the fidelity report's "proposed fields"), so on create they are
- * written as the first lines of `notes` — the one free-text field it has.
+ * Category specifications, sent as `details` and validated server-side by
+ * the contracts schema for the category. Keys are the contract's. The
+ * property address is the identity "Alamat / lokasi" field (custodian), so
+ * `details.address` has no second input here.
  */
 export const DETAIL_SPECS: Record<AssetTypeId, readonly DetailSpec[]> = {
   properti: [
-    { key: "landArea", input: "decimal", placeholder: "500" },
-    { key: "buildingArea", input: "decimal", placeholder: "350" },
-    { key: "certificate", options: CERTIFICATES },
+    { key: "landAreaM2", input: "decimal", placeholder: "500" },
+    { key: "buildingAreaM2", input: "decimal", placeholder: "350" },
+    { key: "certificateType", options: ASSET_CERTIFICATE_TYPES },
   ],
   kendaraan: [
     { key: "brandModel", placeholder: "Mercedes-Benz S 450 L" },
     { key: "year", input: "year", placeholder: "2024" },
-    { key: "plate", placeholder: "B 1 WM" },
+    { key: "plateNumber", placeholder: "B 1 WM" },
   ],
   emas: [
     { key: "purity", options: PURITIES },
@@ -136,24 +137,40 @@ export const DETAIL_SPECS: Record<AssetTypeId, readonly DetailSpec[]> = {
   elektronik: [
     { key: "brandModel", placeholder: "Apple MacBook Pro M3" },
     { key: "serial" },
-    { key: "warranty", input: "date" },
+    { key: "warrantyUntil", input: "date" },
+  ],
+  seni_koleksi: [
+    { key: "artistMaker", placeholder: "Affandi" },
+    { key: "year", input: "year", placeholder: "1965" },
+    { key: "provenance" },
   ],
   lainnya: [],
 };
 
-export type DetailValues = Partial<Record<DetailKey, string>>;
+export type DetailValues = Partial<Record<AssetDetailKey, string>>;
 
-/** "Label: value" lines for the filled specs, in display order. */
-export function composeDetails(
+/**
+ * The filled specs of `type` (trimmed), or null when none: the API body.
+ * A stored property address (no input here) is sent back unchanged so an
+ * edit never drops it.
+ */
+export function detailsBody(
   type: AssetTypeId,
   values: DetailValues,
-  labels: AsetFormCopy["detail"],
-): string {
-  return DETAIL_SPECS[type]
-    .map((s) => [labels[s.key], values[s.key]?.trim()] as const)
-    .filter(([, v]) => !!v)
-    .map(([l, v]) => `${l}: ${v}`)
-    .join("\n");
+): Record<string, string> | null {
+  const keys: AssetDetailKey[] = DETAIL_SPECS[type].map((s) => s.key);
+  if (type === "properti") keys.push("address");
+  const entries = keys
+    .map((k) => [k, values[k]?.trim() ?? ""] as const)
+    .filter(([, v]) => v !== "");
+  return entries.length ? Object.fromEntries(entries) : null;
+}
+
+/** Stored specs (AssetDto.details) as form values. */
+export function detailValuesOf(
+  details: Record<string, string> | null | undefined,
+): DetailValues {
+  return { ...(details ?? {}) } as DetailValues;
 }
 
 export function DetailFields({
@@ -169,6 +186,8 @@ export function DetailFields({
   const f = t.aset.v3.form;
   const specs = DETAIL_SPECS[type];
   if (!specs.length) return null;
+  const optionLabel = (o: string) =>
+    (f.detail.certificates as Record<string, string>)[o] ?? o;
   return (
     <div className="as4f-pair as4f-pair--3">
       {specs.map((s) => {
@@ -190,14 +209,9 @@ export function DetailFields({
                 <option value="">{f.detail.choose}</option>
                 {s.options.map((o) => (
                   <option key={o} value={o}>
-                    {o}
+                    {optionLabel(o)}
                   </option>
                 ))}
-                {s.key === "certificate" && (
-                  <option value={f.detail.certificateOther}>
-                    {f.detail.certificateOther}
-                  </option>
-                )}
               </select>
             ) : (
               <input

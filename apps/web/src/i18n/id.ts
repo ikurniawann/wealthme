@@ -2381,6 +2381,7 @@ export const id = {
       elektronik: "Elektronik",
       perhiasan: "Perhiasan",
       emas: "Emas",
+      seni_koleksi: "Seni & koleksi",
       lainnya: "Lainnya",
     },
     accountTypeLabels: {

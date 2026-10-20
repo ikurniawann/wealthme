@@ -3,6 +3,7 @@
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type {
+  AssetCreateValuationSource,
   AssetDto,
   AssetValuationModel,
   AssetValueChangeMode,
@@ -30,6 +31,11 @@ export interface AssetBody {
   quantity?: string;
   internalCode?: string | null;
   custodian?: string | null;
+  details?: Record<string, string> | null;
+  ownerUserId?: string | null;
+  acquisitionCost?: string;
+  valuationDate?: string;
+  valuationSource?: AssetCreateValuationSource;
   fxInputs?: FxInput[];
 }
 

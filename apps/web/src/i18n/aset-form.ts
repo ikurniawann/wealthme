@@ -9,6 +9,7 @@ type TypeMap = {
   elektronik: string;
   perhiasan: string;
   emas: string;
+  seni_koleksi: string;
   lainnya: string;
 };
 
@@ -39,24 +40,45 @@ export interface AsetFormCopy {
   moreDetailsHint: string;
   notesDocs: string;
   notesDocsHint: string;
-  detailsSaved: string;
+  specsTitle: string;
+  create: {
+    owner: string;
+    ownerShared: string;
+    ownerSelf: string;
+    cost: string;
+    costHint: string;
+    valuationDate: string;
+    valuationDateHint: string;
+    valuationDateBeforeAcq: string;
+    valuationSource: string;
+    sources: { manual: string; appraisal: string; market: string };
+  };
   notesTooLong: string;
   projection: string;
   detail: {
-    landArea: string;
-    buildingArea: string;
-    certificate: string;
-    certificateOther: string;
+    landAreaM2: string;
+    buildingAreaM2: string;
+    certificateType: string;
+    address: string;
     brandModel: string;
     year: string;
-    plate: string;
+    plateNumber: string;
     purity: string;
     issuer: string;
     serial: string;
     material: string;
     stones: string;
-    warranty: string;
+    warrantyUntil: string;
+    artistMaker: string;
+    provenance: string;
     choose: string;
+    certificates: {
+      SHM: string;
+      HGB: string;
+      SHMSRS: string;
+      "Girik-AJB": string;
+      Lainnya: string;
+    };
   };
   preview: {
     title: string;
@@ -90,7 +112,8 @@ export const asetFormId: AsetFormCopy = {
     elektronik: "Laptop, gawai, peralatan",
     perhiasan: "Jam tangan, berlian, perhiasan",
     emas: "Emas batangan & logam mulia",
-    lainnya: "Seni, koleksi, aset lain",
+    seni_koleksi: "Lukisan, patung, barang koleksi",
+    lainnya: "Aset fisik lain",
   },
   namePh: {
     properti: "cth. Rumah Pondok Indah",
@@ -98,7 +121,8 @@ export const asetFormId: AsetFormCopy = {
     elektronik: "cth. MacBook Pro M3",
     perhiasan: "cth. Rolex Daytona",
     emas: "cth. Emas Antam 100 gram",
-    lainnya: "cth. Lukisan Affandi",
+    seni_koleksi: "cth. Lukisan Affandi",
+    lainnya: "cth. Kapal pesiar",
   },
   category: "Kategori",
   change: "Ganti",
@@ -114,34 +138,59 @@ export const asetFormId: AsetFormCopy = {
   weight: "Berat",
   valueNow: "Nilai saat ini",
   valueHintPerUnit:
-    "Nilai total untuk seluruh jumlah. Dicatat juga sebagai modal awal (harga perolehan).",
+    "Nilai total untuk seluruh jumlah. Tanpa harga perolehan, nilai ini juga dicatat sebagai modal awal.",
   valueHintTotal:
-    "Dicatat sebagai valuasi awal. Harga perolehan terpisah belum bisa dicatat di formulir ini.",
+    "Dicatat sebagai valuasi awal. Isi harga perolehan untuk menghitung untung/rugi.",
   valueSuffixFor: "untuk {qty}",
   moreDetails: "Detail tambahan",
   moreDetailsHint: "Spesifikasi, kode internal, dan proyeksi nilai",
   notesDocs: "Catatan & dokumen",
   notesDocsHint: "Catatan bebas dan lampiran bukti",
-  detailsSaved:
-    "Spesifikasi di atas disimpan sebagai baris pertama di catatan aset.",
-  notesTooLong:
-    "Catatan dan spesifikasi melebihi 500 karakter. Persingkat salah satunya.",
+  notesTooLong: "Catatan melebihi 500 karakter. Persingkat catatannya.",
   projection: "Proyeksi nilai (estimasi)",
+  specsTitle: "Spesifikasi",
+  create: {
+    owner: "Pemilik",
+    ownerShared: "Bersama (keluarga)",
+    ownerSelf: "Dicatat atas nama Anda.",
+    cost: "Harga perolehan",
+    costHint:
+      "Total yang dibayar saat memperoleh aset. Kosongkan bila tidak tahu.",
+    valuationDate: "Tanggal valuasi",
+    valuationDateHint: "Tanggal nilai saat ini berlaku. Kosong = hari ini.",
+    valuationDateBeforeAcq:
+      "Tanggal valuasi tidak boleh sebelum tanggal perolehan.",
+    valuationSource: "Sumber valuasi",
+    sources: {
+      manual: "Manual",
+      appraisal: "Penilai / appraisal",
+      market: "Harga pasar",
+    },
+  },
   detail: {
-    landArea: "Luas tanah (m²)",
-    buildingArea: "Luas bangunan (m²)",
-    certificate: "Jenis sertifikat",
-    certificateOther: "Lainnya",
+    landAreaM2: "Luas tanah (m²)",
+    buildingAreaM2: "Luas bangunan (m²)",
+    certificateType: "Jenis sertifikat",
+    address: "Alamat",
     brandModel: "Merek / model",
     year: "Tahun",
-    plate: "Nomor polisi",
+    plateNumber: "Nomor polisi",
     purity: "Kadar",
     issuer: "Merek / penerbit",
     serial: "Nomor seri / sertifikat",
     material: "Bahan",
     stones: "Batu / permata",
-    warranty: "Garansi sampai",
+    warrantyUntil: "Garansi sampai",
+    artistMaker: "Seniman / pembuat",
+    provenance: "Provenans / asal-usul",
     choose: "Pilih",
+    certificates: {
+      SHM: "SHM",
+      HGB: "HGB",
+      SHMSRS: "SHMSRS",
+      "Girik-AJB": "Girik / AJB",
+      Lainnya: "Lainnya",
+    },
   },
   preview: {
     title: "Pratinjau aset",
@@ -151,7 +200,7 @@ export const asetFormId: AsetFormCopy = {
     cost: "Modal awal (harga perolehan)",
     costSame: "sama dengan nilai awal",
     costNone: "Tidak dicatat",
-    gain: "Keuntungan belum direalisasi",
+    gain: "Untung/rugi belum direalisasi",
     effective: "Tanggal valuasi",
     today: "Hari ini",
     source: "Sumber",
@@ -175,7 +224,8 @@ export const asetFormEn: AsetFormCopy = {
     elektronik: "Laptop, devices, equipment",
     perhiasan: "Watches, diamonds, jewellery",
     emas: "Gold bars & precious metal",
-    lainnya: "Art, collectibles, other",
+    seni_koleksi: "Paintings, sculpture, collectibles",
+    lainnya: "Other physical assets",
   },
   namePh: {
     properti: "e.g. Pondok Indah house",
@@ -183,7 +233,8 @@ export const asetFormEn: AsetFormCopy = {
     elektronik: "e.g. MacBook Pro M3",
     perhiasan: "e.g. Rolex Daytona",
     emas: "e.g. Antam gold 100 gram",
-    lainnya: "e.g. Affandi painting",
+    seni_koleksi: "e.g. Affandi painting",
+    lainnya: "e.g. Yacht",
   },
   category: "Category",
   change: "Change",
@@ -199,34 +250,58 @@ export const asetFormEn: AsetFormCopy = {
   weight: "Weight",
   valueNow: "Current value",
   valueHintPerUnit:
-    "Total value for the whole quantity. Also recorded as the opening cost (purchase price).",
+    "Total value for the whole quantity. Without a purchase price it is also recorded as the opening cost.",
   valueHintTotal:
-    "Recorded as the opening valuation. A separate purchase price can't be recorded in this form yet.",
+    "Recorded as the opening valuation. Enter the purchase price to track gain or loss.",
   valueSuffixFor: "for {qty}",
   moreDetails: "More details",
   moreDetailsHint: "Specifications, internal code and value projection",
   notesDocs: "Notes & documents",
   notesDocsHint: "Free notes and proof attachments",
-  detailsSaved:
-    "The specifications above are saved as the first lines of the asset notes.",
-  notesTooLong:
-    "Notes and specifications exceed 500 characters. Shorten one of them.",
+  notesTooLong: "Notes exceed 500 characters. Shorten them.",
   projection: "Value projection (estimate)",
+  specsTitle: "Specifications",
+  create: {
+    owner: "Owner",
+    ownerShared: "Shared (family)",
+    ownerSelf: "Recorded under your name.",
+    cost: "Purchase price",
+    costHint: "Total paid to acquire the asset. Leave empty if unknown.",
+    valuationDate: "Valuation date",
+    valuationDateHint: "Date the current value applies. Empty = today.",
+    valuationDateBeforeAcq:
+      "The valuation date can't be before the acquisition date.",
+    valuationSource: "Valuation source",
+    sources: {
+      manual: "Manual",
+      appraisal: "Appraiser",
+      market: "Market price",
+    },
+  },
   detail: {
-    landArea: "Land area (m²)",
-    buildingArea: "Building area (m²)",
-    certificate: "Certificate type",
-    certificateOther: "Other",
+    landAreaM2: "Land area (m²)",
+    buildingAreaM2: "Building area (m²)",
+    certificateType: "Certificate type",
+    address: "Address",
     brandModel: "Make / model",
     year: "Year",
-    plate: "Licence plate",
+    plateNumber: "Licence plate",
     purity: "Purity",
     issuer: "Brand / issuer",
     serial: "Serial / certificate no.",
     material: "Material",
     stones: "Stones",
-    warranty: "Warranty until",
+    warrantyUntil: "Warranty until",
+    artistMaker: "Artist / maker",
+    provenance: "Provenance",
     choose: "Choose",
+    certificates: {
+      SHM: "SHM (freehold)",
+      HGB: "HGB (building rights)",
+      SHMSRS: "SHMSRS (strata title)",
+      "Girik-AJB": "Girik / AJB",
+      Lainnya: "Other",
+    },
   },
   preview: {
     title: "Asset preview",
@@ -236,7 +311,7 @@ export const asetFormEn: AsetFormCopy = {
     cost: "Opening cost (purchase price)",
     costSame: "same as the opening value",
     costNone: "Not recorded",
-    gain: "Unrealised gain",
+    gain: "Unrealised gain/loss",
     effective: "Valuation date",
     today: "Today",
     source: "Source",

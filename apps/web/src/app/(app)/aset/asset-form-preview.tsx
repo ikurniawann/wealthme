@@ -1,7 +1,10 @@
 "use client";
 
 import { Calculator, Eye } from "lucide-react";
-import type { AssetValuationModel } from "@wealthme/contracts";
+import type {
+  AssetCreateValuationSource,
+  AssetValuationModel,
+} from "@wealthme/contracts";
 import { useLocale } from "@/hooks/use-locale";
 import { useMoney } from "@/hooks/use-money";
 import { fillCopy, fmtDate, fmtPct } from "./aset-model";
@@ -10,8 +13,10 @@ import { fillCopy, fmtDate, fmtPct } from "./aset-model";
  * Pratinjau for the add/edit drawer. Every figure is read from what the form
  * submits: `digits` is the same `moneyDigits(valueField)` the POST/PATCH
  * body sends as `currentValue`, `qty` the same opening quantity. The only
- * arithmetic is presentational (value ÷ quantity for the per-unit line and
- * after − before on edit), mirroring how the API derives the opening price.
+ * arithmetic is presentational (value ÷ quantity for the per-unit line,
+ * after − before on edit, value − Harga perolehan for the unrealised line),
+ * mirroring how the API derives the opening price and cost basis. Without a
+ * purchase price no gain is shown (never a fabricated Rp0 against cost).
  */
 export function AssetFormPreview({
   digits,
@@ -22,6 +27,7 @@ export function AssetFormPreview({
   initialValue,
   acquisitionDate,
   projected,
+  cost,
 }: {
   digits: string;
   isFx: boolean;
@@ -33,6 +39,13 @@ export function AssetFormPreview({
   initialValue: string | null;
   acquisitionDate: string;
   projected: number | null;
+  /** Create only: Harga perolehan (IDR digits), valuation date and source. */
+  cost: {
+    digits: string;
+    isFx: boolean;
+    valuationDate: string;
+    source: AssetCreateValuationSource;
+  } | null;
 }) {
   const { t, locale } = useLocale();
   const f = t.aset.v3.form;
@@ -61,10 +74,24 @@ export function AssetFormPreview({
     delta === null || delta === BigInt(0) ? "flat" : delta > 0 ? "up" : "down";
   const sign = tone === "up" ? "+" : tone === "down" ? "−" : "";
   const abs = delta !== null && delta < 0 ? -delta : delta;
-  const effective =
-    !editing && model === "per_unit" && acquisitionDate
+  const costIdr = cost?.digits ? BigInt(cost.digits) : null;
+  const gain = value !== null && costIdr !== null ? value - costIdr : null;
+  const gainPct =
+    gain !== null && costIdr !== null && costIdr > BigInt(0)
+      ? (Number(gain) / Number(costIdr)) * 100
+      : null;
+  const gainTone =
+    gain === null || gain === BigInt(0) ? "flat" : gain > 0 ? "up" : "down";
+  const gainSign = gainTone === "up" ? "+" : gainTone === "down" ? "−" : "";
+  // The opening valuation's date as the API writes it: the entered date;
+  // else a per-unit opening without cost is valued on its acquisition date;
+  // else today.
+  const effective = cost?.valuationDate
+    ? fmtDate(cost.valuationDate, locale)
+    : !editing && model === "per_unit" && acquisitionDate && costIdr === null
       ? fmtDate(acquisitionDate, locale)
       : p.today;
+  const sourceText = cost ? f.create.sources[cost.source] : p.manual;
 
   return (
     <section
@@ -131,7 +158,12 @@ export function AssetFormPreview({
                 <div>
                   <dt>{p.cost}</dt>
                   <dd>
-                    {model === "per_unit" && qty ? (
+                    {costIdr !== null ? (
+                      <>
+                        {cost?.isFx ? `${p.approx} ` : ""}
+                        {money.formatExact(costIdr)}
+                      </>
+                    ) : model === "per_unit" && qty ? (
                       <>
                         {approx}
                         {money.formatExact(value)}
@@ -142,21 +174,22 @@ export function AssetFormPreview({
                     )}
                   </dd>
                 </div>
-                <div>
-                  <dt>{p.gain}</dt>
-                  <dd>
-                    {model === "per_unit" && qty ? (
-                      <>
-                        {money.formatExact(BigInt(0))}
-                        <span className="as4f-pill" data-tone="flat">
-                          {fmtPct(0, locale)}
+                {gain !== null && (
+                  <div>
+                    <dt>{p.gain}</dt>
+                    <dd data-tone={gainTone}>
+                      {approx || (cost?.isFx ? `${p.approx} ` : "")}
+                      {gainSign}
+                      {money.formatExact(gain < 0 ? -gain : gain)}
+                      {gainPct !== null && gainTone !== "flat" && (
+                        <span className="as4f-pill" data-tone={gainTone}>
+                          {gainSign}
+                          {fmtPct(Math.abs(gainPct), locale)}
                         </span>
-                      </>
-                    ) : (
-                      "—"
-                    )}
-                  </dd>
-                </div>
+                      )}
+                    </dd>
+                  </div>
+                )}
               </>
             )}
             <div>
@@ -165,7 +198,7 @@ export function AssetFormPreview({
             </div>
             <div>
               <dt>{p.source}</dt>
-              <dd>{p.manual}</dd>
+              <dd>{sourceText}</dd>
             </div>
           </dl>
           {editing && delta === BigInt(0) && (

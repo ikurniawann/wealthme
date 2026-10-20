@@ -99,6 +99,9 @@
 .as4f-panel [data-type="elektronik"] {
   --as4-tone: var(--wm-lime);
 }
+.as4f-panel [data-type="seni_koleksi"] {
+  --as4-tone: var(--wm-yellow);
+}
 .as4f-panel [data-type="lainnya"] {
   --as4-tone: var(--wm-rose);
 }
