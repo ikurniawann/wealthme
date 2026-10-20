@@ -69,7 +69,11 @@ export function accountRow(
         date: acquired ? dbDateToYmd(acquired) : null,
         multiple: false,
       },
-      status: a.status === "closed" ? "archived" : "active",
+      // A closed account that still holds a balance is counted (dashboard
+      // parity), so it stays in the default list — badged, not hidden —
+      // and default totals equal the visible rows.
+      status: "active",
+      accountClosed: a.status === "closed",
       // A recorded balance is a user-maintained figure; zero is a real zero.
       valuationBasis: a.balance === 0n ? "zero_valid" : "manual",
       valueIdr: value,

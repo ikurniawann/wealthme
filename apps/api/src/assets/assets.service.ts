@@ -1,8 +1,10 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { type Decimal } from "@prisma/client/runtime/library";
 
 import { isRowScoped } from "../common/utils/privacy.util";
@@ -393,7 +395,21 @@ export class AssetsService {
     if (!existing) {
       throw new NotFoundException("Asset not found");
     }
-    await this.prisma.asset.delete({ where: { id, familyGroupId } });
+    try {
+      await this.prisma.asset.delete({ where: { id, familyGroupId } });
+    } catch (err) {
+      // asset_transactions.assetId is NO ACTION: an asset with ledger rows
+      // can never be hard-deleted. Never a 500.
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === "P2003"
+      ) {
+        throw new ConflictException(
+          "Aset ini memiliki riwayat transaksi dan tidak dapat dihapus. Arsipkan aset ini.",
+        );
+      }
+      throw err;
+    }
   }
 
   async findHistory(

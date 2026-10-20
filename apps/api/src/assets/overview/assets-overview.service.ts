@@ -187,7 +187,12 @@ export class AssetsOverviewService {
           select: { investmentId: true, effectiveDate: true },
         }),
         this.prisma.asset.findMany({
-          where: { familyGroupId, investmentId: { in: invIds } },
+          where: {
+            familyGroupId,
+            investmentId: { in: invIds },
+            status: "active",
+            ...assetAccessWhere(member, userId),
+          },
           select: {
             id: true,
             investmentId: true,

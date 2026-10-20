@@ -14,7 +14,11 @@ import type {
   AssetsOverviewSummaryDto,
 } from "@wealthme/contracts";
 
-const INCOMPLETE_BASES = new Set(["unpriced", "failed", "cost_basis"]);
+/**
+ * One rule for "valuation incomplete", shared by the completeness filter and
+ * `summary.incomplete`: no usable price (cost_basis rows carry a labelled
+ * value and count as complete in both).
+ */
 const MISSING_BASES = new Set(["unpriced", "failed"]);
 
 /** Keys that narrow the row set; sort/paging/currency never do. */
@@ -102,7 +106,7 @@ function matches(r: BuiltRow, q: AssetsOverviewQueryDto): boolean {
   if (q.acquiredTo && (!acquired || acquired > q.acquiredTo)) return false;
   if (q.completeness) {
     const incomplete =
-      d.valueIdr === null || INCOMPLETE_BASES.has(d.valuationBasis);
+      d.valueIdr === null || MISSING_BASES.has(d.valuationBasis);
     if ((q.completeness === "incomplete") !== incomplete) return false;
   }
   return true;

@@ -1,9 +1,11 @@
 import { MARKETS } from "@wealthme/contracts";
 
+import { dbDateToYmd } from "../../investments/ledger/ledger-dates";
 import {
   isPricedBasis,
   jakartaYmd,
 } from "../../investments/valuation/valuation-core";
+import { historyEffectiveFields } from "../history-effective.util";
 
 import {
   D,
@@ -123,8 +125,10 @@ export function investmentRow(
   const valueIdr = isPricedBasis(v.basis) ? v.marketValueIdr : null;
   const sold = v.basis === "zero_valid";
   const custodian = input.platformName ?? linked?.custodian ?? null;
+  // Same date-only rule as asset history: a UTC-midnight purchasedAt is a
+  // calendar date; any other instant is dated in Asia/Jakarta.
   const fallbackDate = row.purchasedAt
-    ? row.purchasedAt.toISOString().slice(0, 10)
+    ? dbDateToYmd(historyEffectiveFields(row.purchasedAt).effectiveDate)
     : null;
   return {
     // A fully sold holding (quantity 0) is a true zero; kept out of sums.

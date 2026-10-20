@@ -116,6 +116,9 @@ ALTER TABLE "asset_history"
 -- asset_history rows WITHOUT effectiveAt/effectiveDate. Fill them from
 -- recordedAt with the same rule as the backfill above, instead of failing
 -- the NOT NULL. New code always sets them, so this only fires for old code.
+-- Known limit: an old image's create() opening row arrives with the column
+-- DEFAULT kind = 'valuation' (the trigger cannot tell it from a valuation);
+-- its value is still correct, only the event label differs.
 CREATE OR REPLACE FUNCTION "asset_history_fill_effective"() RETURNS trigger AS $$
 BEGIN
   IF NEW."recordedAt" IS NULL THEN

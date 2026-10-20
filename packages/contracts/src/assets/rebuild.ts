@@ -127,6 +127,8 @@ export interface AssetOverviewRowDto {
    * Account.type=property next to an Asset properti). Never auto-merged.
    */
   duplicateWarning: boolean;
+  /** Account rows only: the account is closed (shown with a "Ditutup" badge, still counted). */
+  accountClosed?: boolean;
 }
 export interface AssetsOverviewSummaryDto {
   grossTotalIdr: string;

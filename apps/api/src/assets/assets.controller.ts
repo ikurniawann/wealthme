@@ -75,7 +75,13 @@ export class AssetsController {
 
   // Aset Task 17 (A1) — one server-side valuation for the Aset page.
   @Get("overview")
-  @CheckAbility((ab) => ab.can("read", "Asset"))
+  @PageAccess("assets.overview")
+  @CheckAbility(
+    (ab) =>
+      ab.can("read", "Asset") &&
+      ab.can("read", "Account") &&
+      ab.can("read", "Investment"),
+  )
   @ApiOperation({
     summary:
       "Aset overview: accounts, investments and physical assets valued once, with filters and summary",
