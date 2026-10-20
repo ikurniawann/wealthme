@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
-  InsuranceStatus,
   InsuranceType,
+  type InsuranceStatus,
   type PremiumPeriod,
 } from "@prisma/client";
 import { Type } from "class-transformer";
@@ -20,7 +20,10 @@ import {
 
 import { IsTrimmedNotEmpty } from "../../common/decorators/is-trimmed-not-empty.decorator";
 import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
-import { ACCEPTED_PREMIUM_PERIODS } from "../next-renewal-date.util";
+import {
+  ACCEPTED_INSURANCE_STATUSES,
+  ACCEPTED_PREMIUM_PERIODS,
+} from "../next-renewal-date.util";
 
 import { CreateInsuranceBeneficiaryDto } from "./create-insurance-beneficiary.dto";
 
@@ -41,9 +44,9 @@ export class CreateInsuranceDto {
   @IsEnum(InsuranceType)
   type!: InsuranceType;
 
-  @ApiPropertyOptional({ enum: InsuranceStatus })
+  @ApiPropertyOptional({ enum: ACCEPTED_INSURANCE_STATUSES })
   @IsOptional()
-  @IsEnum(InsuranceStatus)
+  @IsIn(ACCEPTED_INSURANCE_STATUSES)
   status?: InsuranceStatus;
 
   @ApiPropertyOptional({ description: "Coverage amount as numeric string" })

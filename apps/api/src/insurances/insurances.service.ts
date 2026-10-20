@@ -635,6 +635,19 @@ export class InsurancesService {
       );
     }
 
+    // Task 21 review fix — payments, valuations and documents are history
+    // (and documents hold storage objects): never cascade them away.
+    const [payments, valuations, documents] = await Promise.all([
+      this.prisma.insurancePayment.count({ where: { insuranceId: id } }),
+      this.prisma.insuranceValuation.count({ where: { insuranceId: id } }),
+      this.prisma.insuranceDocument.count({ where: { insuranceId: id } }),
+    ]);
+    if (payments + valuations + documents > 0) {
+      throw new ConflictException(
+        `Tidak dapat menghapus "${existing.name}" — polis ini masih memiliki riwayat pembayaran (${payments}), nilai polis (${valuations}) atau dokumen (${documents}). Ubah statusnya menjadi tidak aktif, atau hapus riwayat tersebut terlebih dahulu.`,
+      );
+    }
+
     await this.prisma.insurance.delete({ where: { id, familyGroupId } });
   }
 

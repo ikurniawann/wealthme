@@ -1,4 +1,4 @@
-import type { PremiumPeriod } from "@prisma/client";
+import type { InsuranceStatus, PremiumPeriod } from "@prisma/client";
 
 const MONTHS_BY_PERIOD: Record<PremiumPeriod, number> = {
   monthly: 1,
@@ -21,6 +21,19 @@ export const ACCEPTED_PREMIUM_PERIODS: readonly PremiumPeriod[] = [
   "monthly",
   "quarterly",
   "yearly",
+];
+
+/**
+ * The policy statuses the create/update DTOs accept during the rollback
+ * window. masa_tenggang / lapse / berakhir / dibatalkan exist in the schema,
+ * but a row saved with one of them would make the PREVIOUS image's Prisma
+ * client throw on every insurance read for that family if we roll back by
+ * image retag. Widen this ONE constant once the rollback window closes.
+ */
+export const ACCEPTED_INSURANCE_STATUSES: readonly InsuranceStatus[] = [
+  "aktif",
+  "tidak_aktif",
+  "kadaluarsa",
 ];
 
 /**

@@ -230,7 +230,7 @@ ALTER TABLE "insurance_funds" ADD CONSTRAINT "insurance_funds_insuranceId_fkey" 
 ALTER TABLE "insurance_valuations" ADD CONSTRAINT "insurance_valuations_insuranceId_fkey" FOREIGN KEY ("insuranceId") REFERENCES "insurances"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "insurance_valuations" ADD CONSTRAINT "insurance_valuations_fundId_fkey" FOREIGN KEY ("fundId") REFERENCES "insurance_funds"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "insurance_valuations" ADD CONSTRAINT "insurance_valuations_fundId_fkey" FOREIGN KEY ("fundId") REFERENCES "insurance_funds"("id") ON DELETE NO ACTION ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "insurance_valuations" ADD CONSTRAINT "insurance_valuations_documentId_fkey" FOREIGN KEY ("documentId") REFERENCES "insurance_documents"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -242,7 +242,7 @@ ALTER TABLE "insurance_payments" ADD CONSTRAINT "insurance_payments_insuranceId_
 ALTER TABLE "insurance_payments" ADD CONSTRAINT "insurance_payments_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "accounts"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "insurance_payments" ADD CONSTRAINT "insurance_payments_transactionId_fkey" FOREIGN KEY ("transactionId") REFERENCES "transactions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "insurance_payments" ADD CONSTRAINT "insurance_payments_transactionId_fkey" FOREIGN KEY ("transactionId") REFERENCES "transactions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "insurance_documents" ADD CONSTRAINT "insurance_documents_insuranceId_fkey" FOREIGN KEY ("insuranceId") REFERENCES "insurances"("id") ON DELETE CASCADE ON UPDATE CASCADE;

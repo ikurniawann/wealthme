@@ -2018,7 +2018,11 @@ model InsuranceValuation {
   createdAt         DateTime                 @default(now())
   updatedAt         DateTime                 @updatedAt
   insurance         Insurance                @relation(fields: [insuranceId], references: [id], onDelete: Cascade)
-  fund              InsuranceFund?           @relation(fields: [fundId], references: [id], onDelete: Cascade)
+  // NoAction (not Cascade): deleting a fund that still has valuations is
+  // refused, so value history is never wiped. NoAction rather than Restrict
+  // so a whole-policy / whole-family cascade (funds + valuations deleted in
+  // the same statement) still succeeds.
+  fund              InsuranceFund?           @relation(fields: [fundId], references: [id], onDelete: NoAction)
   document          InsuranceDocument?       @relation(fields: [documentId], references: [id], onDelete: SetNull)
 
   @@index([insuranceId, effectiveDate])
@@ -2047,7 +2051,9 @@ model InsurancePayment {
   createdAt       DateTime     @default(now())
   insurance       Insurance    @relation(fields: [insuranceId], references: [id], onDelete: Cascade)
   account         Account?     @relation("InsurancePaymentAccountUsed", fields: [accountId], references: [id], onDelete: SetNull)
-  transaction     Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  // Cascade: a payment row never outlives its ledger expense (a deleted
+  // expense must not leave a "paid" due behind).
+  transaction     Transaction? @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@unique([insuranceId, idempotencyKey])
   @@index([familyGroupId])
