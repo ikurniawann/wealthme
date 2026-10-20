@@ -22,6 +22,7 @@ export const FX_FIELD_SPECS = {
   allowanceRequest: { amount: { kind: "int", positive: true } },
   asset: {
     currentValue: { kind: "digits" },
+    acquisitionCost: { kind: "digits" },
     valueChangeAmount: { kind: "digits", allowNegative: true },
   },
   assetHistory: { value: { kind: "digits" } },

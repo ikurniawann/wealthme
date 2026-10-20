@@ -7,6 +7,7 @@ import {
 import {
   IsDateString,
   IsEnum,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -120,6 +121,16 @@ export class UpdateAssetDto {
   @IsString()
   @MaxLength(200)
   custodian?: string | null;
+
+  // Aset fields (2026-10-20) — per-category specifications; null clears.
+  @ApiPropertyOptional({
+    type: "object",
+    additionalProperties: true,
+    nullable: true,
+  })
+  @IsOptional()
+  @IsObject()
+  details?: Record<string, unknown> | null;
 
   @FxInputsProperty()
   fxInputs?: FxInputDto[];

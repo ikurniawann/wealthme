@@ -7,17 +7,20 @@ import {
 import { Prisma } from "@prisma/client";
 import { type Decimal } from "@prisma/client/runtime/library";
 
-import { isRowScoped } from "../common/utils/privacy.util";
 import { runSerializableWithRetry } from "../common/utils/serializable-retry.util";
-import {
-  dbDateToYmd,
-  jakartaTodayYmd,
-  ymdToDbDate,
-} from "../investments/ledger/ledger-dates";
+import { dbDateToYmd } from "../investments/ledger/ledger-dates";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
 import { viewerAssetWhere } from "./asset-access";
+import {
+  detailsColumn,
+  detailsForUpdate,
+  detailsOut,
+  planOpening,
+  resolveCreateOwner,
+  writeOpening,
+} from "./asset-create";
 import {
   historyEffectiveFields,
   nowEffectiveFields,
@@ -28,7 +31,6 @@ import {
   timelineOf,
   userNames,
 } from "./ledger/asset-ledger-support";
-import { writeOpeningOnCreate } from "./ledger/asset-transactions.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AssetValuationsService } from "./ledger/asset-valuations.service";
 
@@ -40,7 +42,7 @@ import type {
 import type { CreateAssetDto } from "./dto/create-asset.dto";
 import type { RecordAssetValueDto } from "./dto/record-asset-value.dto";
 import type { UpdateAssetDto } from "./dto/update-asset.dto";
-import type { AssetValuationModel } from "@prisma/client";
+import type { Asset, AssetValuationModel } from "@prisma/client";
 
 const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
 
@@ -119,22 +121,7 @@ export function computeEstimatedValue(
   return BigInt(Math.max(estimated, 0));
 }
 
-function toAssetDto(asset: {
-  id: string;
-  familyGroupId: string;
-  name: string;
-  type: string;
-  currentValue: bigint;
-  currency: string;
-  notes: string | null;
-  valueChangeRatePct: Decimal | null;
-  valueChangeMode: AssetValueChangeMode;
-  valueChangeAmount: bigint | null;
-  categoryId: string | null;
-  acquisitionDate: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-}): AssetResponseDto {
+function toAssetDto(asset: Asset): AssetResponseDto {
   return {
     id: asset.id,
     familyGroupId: asset.familyGroupId,
@@ -143,6 +130,20 @@ function toAssetDto(asset: {
     currentValue: asset.currentValue.toString(),
     currency: asset.currency,
     notes: asset.notes,
+    // Aset fields (2026-10-20) — the identity columns the web reads (owner,
+    // model, unit, …) were never serialised: the detail page showed every
+    // asset as Bersama and the edit form reset per-unit assets to total.
+    investmentId: asset.investmentId,
+    ownerUserId: asset.ownerUserId,
+    quantity: asset.quantity?.toString() ?? null,
+    unit: asset.unit,
+    valuationModel: asset.valuationModel,
+    costBasisPerUnit: asset.costBasisPerUnit?.toString() ?? null,
+    internalCode: asset.internalCode,
+    custodian: asset.custodian,
+    details: detailsOut(asset.details),
+    status: asset.status,
+    soldAt: asset.soldAt?.toISOString() ?? null,
     valueChangeRatePct: asset.valueChangeRatePct?.toString() ?? null,
     valueChangeMode: asset.valueChangeMode,
     valueChangeAmount: asset.valueChangeAmount?.toString() ?? null,
@@ -298,27 +299,30 @@ export class AssetsService {
       familyGroupId,
       dto.categoryId,
     );
+    const details = detailsColumn(dto.type, dto.details);
+    const plan = planOpening(dto);
+    const ownerUserId = await resolveCreateOwner(
+      this.prisma,
+      familyGroupId,
+      dto.ownerUserId,
+      viewer,
+    );
 
-    // The opening value and its history row commit together. The row is
-    // date-only on the Jakarta calendar day (controller ruling): a valuation
-    // entered for today — dated or timed — then sorts after it and becomes
-    // current.
-    const today = ymdToDbDate(jakartaTodayYmd());
+    // The asset and its opening rows commit together (see writeOpening:
+    // cost basis = opening transaction, Nilai saat ini = valuation row).
     const asset = await uniqueCode(
       this.prisma.$transaction(async (tx) => {
         const created = await tx.asset.create({
           data: {
             ...identityFields(dto),
             familyGroupId,
-            // A7 — a row-scoped member owns what she records, or she could
-            // not see it afterwards.
-            ownerUserId:
-              viewer && isRowScoped(viewer.member) ? viewer.userId : null,
+            ownerUserId,
             name: dto.name,
             type: dto.type,
             currentValue: BigInt(dto.currentValue),
             currency: dto.currency ?? "IDR",
             notes: dto.notes ?? null,
+            details,
             valueChangeRatePct: dto.valueChangeRatePct ?? null,
             valueChangeMode: dto.valueChangeMode ?? "percent",
             valueChangeAmount:
@@ -331,33 +335,14 @@ export class AssetsService {
               : null,
           },
         });
-        // Per-unit: a real opening transaction (quantity × price), so later
-        // valuations never price a zero quantity into Rp0.
-        if (openingQty) {
-          return writeOpeningOnCreate(
-            tx,
-            created,
-            {
-              quantity: openingQty,
-              valueIdr: created.currentValue,
-              effectiveDate: dto.acquisitionDate
-                ? dto.acquisitionDate.slice(0, 10)
-                : jakartaTodayYmd(),
-            },
-            viewer?.userId ?? null,
-          );
-        }
-        await tx.assetHistory.create({
-          data: {
-            assetId: created.id,
-            value: created.currentValue,
-            kind: "opening",
-            effectiveAt: today,
-            effectiveDate: today,
-            hasTime: false,
-          },
-        });
-        return created;
+        return writeOpening(
+          tx,
+          this.valuations,
+          created,
+          openingQty,
+          plan,
+          viewer?.userId ?? null,
+        );
       }),
     );
 
@@ -394,8 +379,10 @@ export class AssetsService {
         ? await this.resolveCategoryId(familyGroupId, dto.categoryId)
         : existing.categoryId;
 
+    const details = detailsForUpdate(existing, dto);
     const data = {
       ...identityFields(dto),
+      ...(details !== undefined ? { details } : {}),
       name: dto.name ?? existing.name,
       type: dto.type ?? existing.type,
       currency: dto.currency ?? existing.currency,

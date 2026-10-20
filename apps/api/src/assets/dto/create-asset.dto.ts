@@ -4,9 +4,12 @@ import {
   AssetValuationModel,
   AssetValueChangeMode,
 } from "@prisma/client";
+import { ASSET_CREATE_VALUATION_SOURCES } from "@wealthme/contracts";
 import {
   IsDateString,
   IsEnum,
+  IsIn,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -127,6 +130,45 @@ export class CreateAssetDto {
   @IsString()
   @MaxLength(200)
   custodian?: string | null;
+
+  // Aset fields (2026-10-20) — Pemilik. A member's userId; null or omitted
+  // = Bersama (family). A row-scoped member may only record for themselves
+  // (AssetsService resolves and checks it).
+  @ApiPropertyOptional({ nullable: true, format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  ownerUserId?: string | null;
+
+  // Harga perolehan in IDR digits (or fxInputs field "acquisitionCost").
+  // Written as the opening transaction's cost basis; never a valuation.
+  @ApiPropertyOptional({ example: "1500000000" })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{1,15}$/, {
+    message: "acquisitionCost must be a numeric string",
+  })
+  acquisitionCost?: string;
+
+  // Opening valuation's calendar date (yyyy-mm-dd, floating date-only).
+  @ApiPropertyOptional({ example: "2026-10-20" })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: "valuationDate must be yyyy-mm-dd",
+  })
+  valuationDate?: string;
+
+  @ApiPropertyOptional({ enum: ASSET_CREATE_VALUATION_SOURCES })
+  @IsOptional()
+  @IsIn(ASSET_CREATE_VALUATION_SOURCES)
+  valuationSource?: (typeof ASSET_CREATE_VALUATION_SOURCES)[number];
+
+  // Per-category specifications; validated against the contracts schema for
+  // `type` by AssetsService (unknown keys and bad formats are a 400).
+  @ApiPropertyOptional({ type: "object", additionalProperties: true })
+  @IsOptional()
+  @IsObject()
+  details?: Record<string, unknown> | null;
 
   @FxInputsProperty()
   fxInputs?: FxInputDto[];

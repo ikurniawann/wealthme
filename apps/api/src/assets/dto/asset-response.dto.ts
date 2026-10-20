@@ -1,5 +1,9 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { AssetValueChangeMode } from "@prisma/client";
+import {
+  AssetStatus,
+  AssetValuationModel,
+  AssetValueChangeMode,
+} from "@prisma/client";
 
 export class AssetResponseDto {
   @ApiProperty() id!: string;
@@ -9,6 +13,26 @@ export class AssetResponseDto {
   @ApiProperty() currentValue!: string;
   @ApiProperty() currency!: string;
   @ApiProperty({ nullable: true }) notes!: string | null;
+  // Aset fields (2026-10-20) — identity columns (AssetDto in contracts).
+  @ApiProperty({ nullable: true }) investmentId!: string | null;
+  @ApiProperty({ nullable: true, description: "null = Bersama (family)" })
+  ownerUserId!: string | null;
+  @ApiProperty({ nullable: true }) quantity!: string | null;
+  @ApiProperty({ nullable: true }) unit!: string | null;
+  @ApiProperty({ enum: AssetValuationModel })
+  valuationModel!: AssetValuationModel;
+  @ApiProperty({ nullable: true }) costBasisPerUnit!: string | null;
+  @ApiProperty({ nullable: true }) internalCode!: string | null;
+  @ApiProperty({ nullable: true }) custodian!: string | null;
+  @ApiProperty({
+    nullable: true,
+    type: "object",
+    additionalProperties: { type: "string" },
+    description: "Per-category specifications (AssetDetailsSchemas[type])",
+  })
+  details!: Record<string, string> | null;
+  @ApiProperty({ enum: AssetStatus }) status!: AssetStatus;
+  @ApiProperty({ nullable: true }) soldAt!: string | null;
   @ApiProperty({
     nullable: true,
     description:
