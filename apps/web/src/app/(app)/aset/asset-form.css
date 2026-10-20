@@ -248,7 +248,7 @@
 
 @media (min-width: 721px) {
   .dialog.wm-panel.wm-panel--side.as4f-panel {
-    width: min(880px, calc(100vw - 24px));
+    width: min(1180px, calc(100vw - 24px));
   }
   .as4f-panel .wm-form :is(.input, .select):not(textarea) {
     min-height: 44px;
