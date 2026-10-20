@@ -46,6 +46,7 @@ import {
   todayInTimeZone,
   DEFAULT_TIME_ZONE,
   toDateOnly,
+  lastPaidDueByPolicy,
   walkPastPaidDues,
   ymd,
 } from "./premium-schedule.util";
@@ -148,13 +149,19 @@ export class InsurancePaymentsService {
     return rows.map(toPaymentDto);
   }
 
-  /** Policy ids whose current due / period is already paid (one query). */
-  async paidThisPeriodIds(
+  /**
+   * Per-policy payment facts for the response DTOs, from ONE query: the ids
+   * whose current due / period is already paid, and each policy's latest
+   * paid dueDate (dueNeedsConfirmation's "advanced by a payment" exemption).
+   */
+  async paymentFacts(
     familyGroupId: string,
     policies: Insurance[],
     today: Date,
-  ): Promise<Set<string>> {
-    if (policies.length === 0) return new Set();
+  ): Promise<{ paid: Set<string>; lastPaidDue: Map<string, Date> }> {
+    if (policies.length === 0) {
+      return { paid: new Set(), lastPaidDue: new Map() };
+    }
     const payments = await this.prisma.insurancePayment.findMany({
       where: { familyGroupId, insuranceId: { in: policies.map((p) => p.id) } },
       select: { insuranceId: true, dueDate: true, paidAt: true },
@@ -170,7 +177,7 @@ export class InsurancePaymentsService {
         paid.add(policy.id);
       }
     }
-    return paid;
+    return { paid, lastPaidDue: lastPaidDueByPolicy(payments) };
   }
 
   async pay(
@@ -359,9 +366,17 @@ export class InsurancePaymentsService {
       include: INSURANCE_INCLUDE,
     });
     const today = todayInTimeZone();
-    const paid = await this.paidThisPeriodIds(familyGroupId, [policy], today);
+    const { paid, lastPaidDue } = await this.paymentFacts(
+      familyGroupId,
+      [policy],
+      today,
+    );
     return {
-      ...toInsuranceDto(policy, { today, paidThisPeriod: paid.has(policy.id) }),
+      ...toInsuranceDto(policy, {
+        today,
+        paidThisPeriod: paid.has(policy.id),
+        lastPaidDueDate: lastPaidDue.get(policy.id) ?? null,
+      }),
       payment: toPaymentDto(payment),
       replayed,
     };

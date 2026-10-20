@@ -28,6 +28,7 @@ import {
   type InsuranceViewer,
 } from "./insurance-scope.util";
 import { buildInsuranceSummary } from "./insurance-summary";
+import { findLastPaidDues } from "./last-paid-due.query";
 import {
   monthlyBudgetContribution,
   parseDateOnly,
@@ -191,12 +192,17 @@ export class InsurancesService {
     rows: InsuranceWithRelations[],
   ): Promise<InsuranceResponseDto[]> {
     const today = todayInTimeZone();
-    const [lookup, paid] = await Promise.all([
+    const [lookup, { paid, lastPaidDue }] = await Promise.all([
       this.resolveMemberLookup(familyGroupId, referencedMemberIds(rows)),
-      this.payments.paidThisPeriodIds(familyGroupId, rows, today),
+      this.payments.paymentFacts(familyGroupId, rows, today),
     ]);
     return rows.map((r) =>
-      toInsuranceDto(r, { lookup, today, paidThisPeriod: paid.has(r.id) }),
+      toInsuranceDto(r, {
+        lookup,
+        today,
+        paidThisPeriod: paid.has(r.id),
+        lastPaidDueDate: lastPaidDue.get(r.id) ?? null,
+      }),
     );
   }
 
@@ -285,8 +291,15 @@ export class InsurancesService {
         valuations: { where: { status: "confirmed" } },
       },
     });
-    // S6 — the shared helper's figure, limited to policies this viewer sees.
-    const positions = await this.netWorth.positions(familyGroupId);
+    const [positions, lastPaidDue] = await Promise.all([
+      // S6 — the shared helper's figure, limited to policies this viewer sees.
+      this.netWorth.positions(familyGroupId),
+      findLastPaidDues(
+        this.prisma,
+        rows.map((r) => r.id),
+        familyGroupId,
+      ),
+    ]);
     const visible = new Set(rows.map((r) => r.id));
     const netWorthValueIdr = positions
       .filter((p) => visible.has(p.insuranceId))
@@ -296,6 +309,7 @@ export class InsurancesService {
       from: query.from ? parseDateOnly(query.from) : undefined,
       to: query.to ? parseDateOnly(query.to) : undefined,
       netWorthValueIdr,
+      lastPaidDue,
     });
   }
 

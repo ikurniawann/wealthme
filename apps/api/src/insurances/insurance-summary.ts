@@ -68,7 +68,9 @@ class CurrencyTotals {
  *   PREMIUM_CURRENCY);
  * - overdue: dues from nextPremiumDueDate up to yesterday (IDR);
  * - premiumDue/overdue skip a due that needs confirmation (legacy date that
- *   looks like a coverage end — see dueNeedsConfirmation);
+ *   looks like a coverage end — see dueNeedsConfirmation; `lastPaidDue`
+ *   holds each policy's latest paid dueDate, so a due an early payment
+ *   advanced is still totalled);
  * - monthlyPremiumNormalized: Decimal per currency, rounded once — a
  *   NORMALIZATION, not a bill (fixes the old per-row integer truncation of
  *   quarterly/yearly premiums and the mixed-currency sum);
@@ -77,7 +79,13 @@ class CurrencyTotals {
  */
 export function buildInsuranceSummary(
   rows: SummaryRow[],
-  opts: { today: Date; from?: Date; to?: Date; netWorthValueIdr: bigint },
+  opts: {
+    today: Date;
+    from?: Date;
+    to?: Date;
+    netWorthValueIdr: bigint;
+    lastPaidDue: ReadonlyMap<string, Date>;
+  },
 ): InsuranceSummaryResponseDto {
   const { today } = opts;
   const from =
@@ -99,7 +107,7 @@ export function buildInsuranceSummary(
     const m = monthlyEquivalent(premium, r.premiumPeriod);
     if (m) monthly.add(PREMIUM_CURRENCY, m);
     // A legacy due that looks like a coverage end is not a premium due.
-    if (dueNeedsConfirmation(r, today)) {
+    if (dueNeedsConfirmation(r, today, opts.lastPaidDue.get(r.id) ?? null)) {
       needsConfirmation++;
       continue;
     }

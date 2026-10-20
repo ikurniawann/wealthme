@@ -9,6 +9,7 @@ import { ownerNotifPrefs } from "../notifications/notification-prefs";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
+import { findLastPaidDues } from "./last-paid-due.query";
 import {
   daysBetween,
   dueNeedsConfirmation,
@@ -30,6 +31,8 @@ export interface ReminderPolicy {
   status: InsuranceStatus;
   premiumPeriod: PremiumPeriod;
   nextPremiumDueDate: Date | null;
+  coverageStartDate: Date | null;
+  premiumPaymentEndDate: Date | null;
   holderUserId: string | null;
   payerUserId: string | null;
 }
@@ -41,6 +44,8 @@ const REMINDER_SELECT = {
   status: true,
   premiumPeriod: true,
   nextPremiumDueDate: true,
+  coverageStartDate: true,
+  premiumPaymentEndDate: true,
   holderUserId: true,
   payerUserId: true,
 } as const;
@@ -67,13 +72,18 @@ export class InsuranceRemindersService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Best-effort: never fails the caller. Returns true when a reminder was created. */
+  /**
+   * Best-effort: never fails the caller. Returns true when a reminder was
+   * created. `lastPaidDueDate` is the policy's latest paid dueDate (see
+   * dueNeedsConfirmation); undefined = not loaded, fetched only if needed.
+   */
   async remindIfDue(
     policy: ReminderPolicy,
     now: Date = new Date(),
+    lastPaidDueDate?: Date | null,
   ): Promise<boolean> {
     try {
-      return await this.remind(policy, todayInTimeZone(now));
+      return await this.remind(policy, todayInTimeZone(now), lastPaidDueDate);
     } catch (err: unknown) {
       this.logger.warn(
         `premium reminder failed for insurance ${policy.id}: ${err instanceof Error ? err.message : String(err)}`,
@@ -93,18 +103,38 @@ export class InsuranceRemindersService {
       },
       select: REMINDER_SELECT,
     });
+    const lastPaidDue = await findLastPaidDues(
+      this.prisma,
+      policies.map((p) => p.id),
+    );
     let sent = 0;
     for (const p of policies) {
-      if (await this.remindIfDue(p, now)) sent++;
+      if (await this.remindIfDue(p, now, lastPaidDue.get(p.id) ?? null)) {
+        sent++;
+      }
     }
     return sent;
   }
 
-  private async remind(policy: ReminderPolicy, today: Date): Promise<boolean> {
+  private async remind(
+    policy: ReminderPolicy,
+    today: Date,
+    lastPaidDueDate: Date | null | undefined,
+  ): Promise<boolean> {
     const due = policy.nextPremiumDueDate;
     if (!due || !PREMIUM_PAYING_STATUSES.includes(policy.status)) return false;
-    // A legacy due that looks like a coverage end is never reminded.
-    if (dueNeedsConfirmation(policy, today)) return false;
+    // A legacy due that looks like a coverage end is never reminded — unless
+    // a recorded payment advanced the schedule there. The payment lookup
+    // runs only when the period rule alone would flag the due.
+    if (dueNeedsConfirmation(policy, today, null)) {
+      const lastPaid =
+        lastPaidDueDate !== undefined
+          ? lastPaidDueDate
+          : ((await findLastPaidDues(this.prisma, [policy.id])).get(
+              policy.id,
+            ) ?? null);
+      if (dueNeedsConfirmation(policy, today, lastPaid)) return false;
+    }
     const days = daysBetween(today, due);
     if (days > reminderWindowDays(policy.premiumPeriod)) return false;
 

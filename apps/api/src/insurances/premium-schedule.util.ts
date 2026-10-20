@@ -236,18 +236,33 @@ export const NON_RECURRING_CONFIRM_MONTHS = 13;
  * copied into nextPremiumDueDate. When it was really a coverage end (e.g.
  * 2036 on a monthly policy) it must not be presented, totalled or reminded
  * as a premium due. A due further out than one full premium period after
- * today (Asia/Jakarta) — plus the reminder lead, so a premium paid early
- * whose schedule just stepped forward is not flagged — needs the user's
- * confirmation; single/custom periods use 13 months. There is no "schedule
- * confirmed since migration" marker, so the period rule alone decides:
- * editing the due to a plausible date clears the flag. Derived, never stored.
+ * today (Asia/Jakarta) plus the reminder lead needs the user's
+ * confirmation; single/custom periods use 13 months.
+ *
+ * Exemption: a due the app itself produced by recording a payment is never
+ * suspect, however far ahead an early payment pushed it. That is the case
+ * when `lastPaidDueDate` (the latest dueDate among the policy's existing
+ * insurance payments; a voided payment row is deleted, so voiding brings
+ * the flag back) stepped forward one premium period on pay()'s own anchor
+ * is exactly the current due. Single/custom have no step, so pay() never
+ * leaves them a due and the exemption cannot apply. Editing the due to a
+ * plausible date also clears the flag. Derived, never stored.
  */
 export function dueNeedsConfirmation(
-  policy: { nextPremiumDueDate: Date | null; premiumPeriod: PremiumPeriod },
+  policy: {
+    nextPremiumDueDate: Date | null;
+    premiumPeriod: PremiumPeriod;
+    coverageStartDate: Date | null;
+    premiumPaymentEndDate: Date | null;
+  },
   today: Date,
+  lastPaidDueDate: Date | null,
 ): boolean {
   const due = policy.nextPremiumDueDate;
   if (!due) return false;
+  if (lastPaidDueDate && isDueAfterPayment(policy, due, lastPaidDueDate)) {
+    return false;
+  }
   const months = MONTHS_PER_PERIOD[policy.premiumPeriod];
   const limit =
     months === null
@@ -257,6 +272,41 @@ export function dueNeedsConfirmation(
             reminderWindowDays(policy.premiumPeriod) * DAY_MS,
         );
   return toDateOnly(due) > limit;
+}
+
+/** True when pay() settling `paidDue` would advance the schedule to `due`. */
+function isDueAfterPayment(
+  policy: {
+    premiumPeriod: PremiumPeriod;
+    coverageStartDate: Date | null;
+    premiumPaymentEndDate: Date | null;
+  },
+  due: Date,
+  paidDue: Date,
+): boolean {
+  const paid = toDateOnly(paidDue);
+  const stepped = nextPremiumDue(
+    paid,
+    policy.premiumPeriod,
+    scheduleOptionsFor(policy, paid),
+  );
+  return !!stepped && sameDay(stepped, due);
+}
+
+/**
+ * The latest dueDate among a policy's payments, per policy (payments
+ * without a due are ignored). Feeds dueNeedsConfirmation's exemption.
+ */
+export function lastPaidDueByPolicy(
+  payments: { insuranceId: string; dueDate: Date | null }[],
+): Map<string, Date> {
+  const out = new Map<string, Date>();
+  for (const p of payments) {
+    if (!p.dueDate) continue;
+    const cur = out.get(p.insuranceId);
+    if (!cur || p.dueDate > cur) out.set(p.insuranceId, p.dueDate);
+  }
+  return out;
 }
 
 /** Asia/Jakarta is a fixed UTC+07:00 zone (no DST). */

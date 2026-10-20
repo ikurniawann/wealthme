@@ -104,6 +104,8 @@ export function toInsuranceDto(
   ctx: {
     lookup?: MemberLookup;
     paidThisPeriod?: boolean;
+    /** Latest paid dueDate (see dueNeedsConfirmation); null = none. */
+    lastPaidDueDate?: Date | null;
     today: Date;
   },
 ): InsuranceResponseDto {
@@ -146,7 +148,11 @@ export function toInsuranceDto(
       ? daysBetween(ctx.today, row.nextPremiumDueDate)
       : null,
     premiumDueStatus: premiumDueStatus(row.nextPremiumDueDate, ctx.today),
-    dueNeedsConfirmation: dueNeedsConfirmation(row, ctx.today),
+    dueNeedsConfirmation: dueNeedsConfirmation(
+      row,
+      ctx.today,
+      ctx.lastPaidDueDate ?? null,
+    ),
     monthlyEquivalentPremium: monthly?.toDecimalPlaces(2).toFixed(2) ?? null,
     holderUserId: row.holderUserId,
     holderName: holder?.name ?? row.holderName,
