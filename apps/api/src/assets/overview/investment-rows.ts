@@ -85,6 +85,8 @@ function priceChange(
     return NO_CHANGE;
   }
   if (prev.currency !== p.currency) return NO_CHANGE;
+  // A6 — a zero/unknown previous price has no comparable change ("—").
+  if (!prev.price.greaterThan(0)) return NO_CHANGE;
   if ((prev.unitLabel ?? p.unitLabel) !== p.unitLabel) return NO_CHANGE;
   const rate =
     p.currency === "IDR"

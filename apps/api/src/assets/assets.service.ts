@@ -28,6 +28,7 @@ import {
   timelineOf,
   userNames,
 } from "./ledger/asset-ledger-support";
+import { writeOpeningOnCreate } from "./ledger/asset-transactions.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AssetValuationsService } from "./ledger/asset-valuations.service";
 
@@ -211,6 +212,38 @@ function identityFields(dto: {
   };
 }
 
+const QUANTITY_RE = /^\d+(\.\d{1,8})?$/;
+
+/**
+ * A per-unit asset is valued as quantity × price: without a quantity every
+ * later valuation would price to Rp0. The error names the field so the form
+ * can show it next to "Jumlah".
+ */
+function perUnitOpeningQuantity(raw: string | null | undefined): string {
+  const q = raw?.trim() ?? "";
+  const fail = (message: string): never => {
+    throw new BadRequestException({
+      statusCode: 400,
+      error: "Bad Request",
+      code: "ASSET_QUANTITY_INVALID",
+      field: "quantity",
+      message,
+    });
+  };
+  if (!q) {
+    return fail(
+      "Jumlah wajib diisi untuk aset yang dinilai per unit (mis. 10 gram).",
+    );
+  }
+  if (!QUANTITY_RE.test(q)) {
+    return fail("Jumlah harus angka, maksimal 8 angka di belakang koma.");
+  }
+  if (!new Prisma.Decimal(q).greaterThan(0)) {
+    return fail("Jumlah harus lebih dari 0.");
+  }
+  return q;
+}
+
 /** internalCode is unique per family: a clash is a 409, never a 500. */
 async function uniqueCode<T>(write: Promise<T>): Promise<T> {
   try {
@@ -257,6 +290,10 @@ export class AssetsService {
     this.assertValidRatePct(dto.valueChangeRatePct);
     this.assertValidValueChangeAmount(dto.valueChangeAmount);
     this.assertValidAcquisitionDate(dto.acquisitionDate);
+    const openingQty =
+      dto.valuationModel === "per_unit"
+        ? perUnitOpeningQuantity(dto.quantity)
+        : null;
     const categoryId = await this.resolveCategoryId(
       familyGroupId,
       dto.categoryId,
@@ -294,6 +331,22 @@ export class AssetsService {
               : null,
           },
         });
+        // Per-unit: a real opening transaction (quantity × price), so later
+        // valuations never price a zero quantity into Rp0.
+        if (openingQty) {
+          return writeOpeningOnCreate(
+            tx,
+            created,
+            {
+              quantity: openingQty,
+              valueIdr: created.currentValue,
+              effectiveDate: dto.acquisitionDate
+                ? dto.acquisitionDate.slice(0, 10)
+                : jakartaTodayYmd(),
+            },
+            viewer?.userId ?? null,
+          );
+        }
         await tx.assetHistory.create({
           data: {
             assetId: created.id,

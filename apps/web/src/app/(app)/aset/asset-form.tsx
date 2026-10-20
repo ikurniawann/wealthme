@@ -26,7 +26,12 @@ import {
   PanelContent,
 } from "@/components/ui/dialog";
 import { DateField, PillButton } from "@/components/wm";
-import { ChangeFields, ModelField, TextField } from "./asset-form-fields";
+import {
+  ChangeFields,
+  ModelField,
+  QuantityField,
+  TextField,
+} from "./asset-form-fields";
 import {
   MoneyInput,
   anyMoneyPending,
@@ -49,6 +54,9 @@ function wibToday(): string {
   return new Date(Date.now() + 7 * 60 * 60_000).toISOString().slice(0, 10);
 }
 
+/** Quantity: positive decimal, at most 8 places (mirrors the API). */
+const QTY_RE = /^\d+(\.\d{1,8})?$/;
+
 interface AssetBody {
   name: string;
   type: string;
@@ -61,6 +69,7 @@ interface AssetBody {
   acquisitionDate?: string;
   unit?: string | null;
   valuationModel?: AssetValuationModel;
+  quantity?: string;
   internalCode?: string | null;
   custodian?: string | null;
   fxInputs?: FxInput[];
@@ -116,6 +125,9 @@ export function AssetFormDialog({
   const [model, setModel] = useState<AssetValuationModel>(
     editing?.valuationModel ?? "total",
   );
+  const [quantity, setQuantity] = useState("");
+  const [qtyError, setQtyError] = useState<string | null>(null);
+  const needsQty = !editing && model === "per_unit";
   const [code, setCode] = useState(editing?.internalCode ?? "");
   const [custodian, setCustodian] = useState(editing?.custodian ?? "");
 
@@ -147,6 +159,10 @@ export function AssetFormDialog({
       onClose();
     },
     onError: (err) => {
+      if ((err as { code?: unknown }).code === "ASSET_QUANTITY_INVALID") {
+        setQtyError(apiErrorMessage(err, c.formQtyInvalid));
+        return;
+      }
       const fallback = editing
         ? t.aset.toastUpdateFailed
         : t.aset.toastAddFailed;
@@ -177,6 +193,16 @@ export function AssetFormDialog({
     }
     const digits = moneyDigits(valueField);
     if (!name.trim() || !digits) return;
+    const qty = quantity.trim().replace(",", ".");
+    if (needsQty) {
+      const err = !qty
+        ? c.formQtyRequired
+        : !QTY_RE.test(qty) || Number(qty) <= 0
+          ? c.formQtyInvalid
+          : null;
+      setQtyError(err);
+      if (err) return;
+    }
     const amountDigits = moneyDigits(changeField);
     const valueChanged = !editing || digits !== initialValue;
     const opt = (v: string) =>
@@ -199,6 +225,7 @@ export function AssetFormDialog({
           acquisitionDate: acquisitionDate || undefined,
           unit: opt(unit),
           valuationModel: model,
+          ...(needsQty ? { quantity: qty } : {}),
           internalCode: opt(code),
           custodian: opt(custodian),
         },
@@ -299,6 +326,17 @@ export function AssetFormDialog({
                 />
               </div>
               <ModelField value={model} onChange={setModel} />
+              {needsQty && (
+                <QuantityField
+                  value={quantity}
+                  unit={unit}
+                  error={qtyError}
+                  onChange={(v) => {
+                    setQuantity(v);
+                    if (qtyError) setQtyError(null);
+                  }}
+                />
+              )}
               <TextField
                 id="asset-unit"
                 label={c.formUnit}

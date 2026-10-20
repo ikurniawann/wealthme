@@ -6,6 +6,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 
 import { runSerializableWithRetry } from "../../common/utils/serializable-retry.util";
 import {
@@ -362,6 +363,64 @@ export class AssetTransactionsService {
         (input.costBasisKnown ?? true) === original.costBasisKnown)
     );
   }
+}
+
+/**
+ * Aset create — a per-unit asset entered with a quantity starts with a real
+ * opening transaction (quantity × price = the entered value), never an
+ * opening at quantity 0 that later prices to Rp0. Runs inside the caller's
+ * transaction on the asset it just created (no cash leg, no lock needed).
+ */
+export async function writeOpeningOnCreate(
+  tx: TxClient,
+  asset: Asset,
+  opening: { quantity: string; valueIdr: bigint; effectiveDate: string },
+  userId: string | null,
+): Promise<Asset> {
+  const qty = new Prisma.Decimal(opening.quantity);
+  const price = new Prisma.Decimal(opening.valueIdr.toString())
+    .dividedBy(qty)
+    .toDecimalPlaces(8, Prisma.Decimal.ROUND_HALF_UP);
+  const row = normalize({
+    kind: "opening",
+    idempotencyKey: randomUUID(),
+    quantity: qty.toString(),
+    pricePerUnit: price.toString(),
+    currency: "IDR",
+    effectiveDate: opening.effectiveDate,
+    effectiveTime: null,
+    timeZone: null,
+  });
+  const draft = draftRow(asset, row, {
+    id: randomUUID(),
+    createdAt: new Date(),
+    idempotencyKey: randomUUID(),
+    costBasisKnown: true,
+    createdByUserId: userId,
+  });
+  const written = await tx.assetTransaction.create({
+    data: { ...draft, cashTransactionId: null, realizedPnl: null },
+  });
+  await tx.assetHistory.create({
+    data: {
+      assetId: asset.id,
+      kind: "opening",
+      value: 0n,
+      ...txHistoryEffective(row),
+      timeZone: row.timeZone,
+      createdAt: written.createdAt,
+      source: "transaction",
+      valuationModel: asset.valuationModel,
+      pricePerUnit: row.pricePerUnit,
+      currency: row.currency,
+      fxRate: row.fxRate,
+      unit: asset.unit,
+      assetTransactionId: written.id,
+      recordedByUserId: userId,
+      note: null,
+    },
+  });
+  return (await rebuildAsset(tx, asset)).asset;
 }
 
 function normalize(input: CreateAssetTransactionInput): ProposedRow {

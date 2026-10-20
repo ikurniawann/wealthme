@@ -136,9 +136,9 @@ function wholeRupiah(d: Decimal): Decimal {
   return d.toDecimalPlaces(0, D.ROUND_HALF_UP);
 }
 
-/** Percentage rounded to 2 dp; null when the base is 0 or unknown. */
+/** Percentage rounded to 2 dp; null when the base is ≤ 0 or unknown. */
 export function pct(part: Decimal, base: Decimal | null): number | null {
-  if (!base || base.isZero()) return null;
+  if (!base || !base.greaterThan(0)) return null;
   return part.dividedBy(base).times(100).toDecimalPlaces(2).toNumber();
 }
 

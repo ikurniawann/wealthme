@@ -108,6 +108,14 @@ export class CreateAssetDto {
   @IsEnum(AssetValuationModel)
   valuationModel?: AssetValuationModel;
 
+  // Required (> 0) when valuationModel is per_unit: it becomes the opening
+  // transaction's quantity. Ignored for total-valued assets.
+  @ApiPropertyOptional({ example: "10", nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  quantity?: string | null;
+
   @ApiPropertyOptional({ example: "EMAS-01", nullable: true })
   @IsOptional()
   @IsString()

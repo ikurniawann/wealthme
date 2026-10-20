@@ -199,8 +199,13 @@ export function changeAt(
 ): AssetValueChangeDto {
   const row = t.ordered[index];
   // A trade (including an opening transaction) moves quantity; it is never
-  // reported as a price change.
-  if (!row || !VALUATION_KINDS.has(row.kind) || row.assetTransactionId) {
+  // reported as a price change. An opening is the first value, not a change.
+  if (
+    !row ||
+    !VALUATION_KINDS.has(row.kind) ||
+    row.kind === "opening" ||
+    row.assetTransactionId
+  ) {
     return NO_CHANGE;
   }
   let crossed = false;
@@ -229,8 +234,14 @@ function compare(
   const comparisonDate = dbDateToYmd(prev.effectiveDate);
   const a = t.states.get(row.id)!;
   const b = t.states.get(prev.id)!;
+  // A per-unit row valued at quantity 0 (legacy data) is not a valuation of
+  // anything: no change is reported for or against it.
+  if (pricedAtZero(row, a) || pricedAtZero(prev, b)) return NO_CHANGE;
   if (!crossed) {
     const base = new D(b.value.toString());
+    // A6 — a zero/unknown baseline has no meaningful change: "Belum ada
+    // valuasi pembanding", never "+Rp X" against Rp0.
+    if (!base.greaterThan(0)) return NO_CHANGE;
     const diff = new D(a.value.toString()).minus(base);
     return {
       amountIdr: diff.toFixed(0),
@@ -241,7 +252,7 @@ function compare(
   }
   const pa = priceIdrOf(row);
   const pb = priceIdrOf(prev);
-  if (!pa || !pb || !a.quantityAfter) return NO_CHANGE;
+  if (!pa || !pb || !pb.greaterThan(0) || !a.quantityAfter) return NO_CHANGE;
   const diff = pa.minus(pb);
   return {
     amountIdr: toRupiah(diff.times(a.quantityAfter)).toString(),
@@ -249,6 +260,14 @@ function compare(
     comparisonDate,
     period,
   };
+}
+
+function pricedAtZero(row: TimelineRow, s: RowState): boolean {
+  return (
+    row.pricePerUnit !== null &&
+    s.quantityAfter !== null &&
+    s.quantityAfter.isZero()
+  );
 }
 
 function lastValuationIndex(t: Timeline): number {

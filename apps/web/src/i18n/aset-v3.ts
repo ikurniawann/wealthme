@@ -152,6 +152,10 @@ export interface AsetV3Copy {
   formModelTotal: string;
   formModelPerUnit: string;
   formModelHint: string;
+  formQty: string;
+  formQtyPh: string;
+  formQtyRequired: string;
+  formQtyInvalid: string;
   formCode: string;
   formCodePh: string;
   formCustodian: string;
@@ -300,7 +304,13 @@ export const asetV3Id: AsetV3Copy = {
   formModelTotal: "Nilai total",
   formModelPerUnit: "Per unit",
   formModelHint:
-    "Per unit: nilai = kuantitas × harga per unit. Kuantitas dicatat lewat transaksi di detail aset.",
+    "Per unit: nilai = jumlah × harga per unit. Jumlah awal dicatat sebagai kepemilikan awal; perubahan berikutnya lewat transaksi di detail aset.",
+  formQty: "Jumlah",
+  formQtyPh: "cth. 10",
+  formQtyRequired:
+    "Jumlah wajib diisi untuk aset yang dinilai per unit (mis. 10 gram).",
+  formQtyInvalid:
+    "Jumlah harus angka lebih dari 0, maksimal 8 angka di belakang koma.",
   formCode: "Kode internal (opsional)",
   formCodePh: "cth. EMAS-01",
   formCustodian: "Lokasi / kustodian (opsional)",
@@ -448,7 +458,13 @@ export const asetV3En: AsetV3Copy = {
   formModelTotal: "Total value",
   formModelPerUnit: "Per unit",
   formModelHint:
-    "Per unit: value = quantity × price per unit. Quantity is recorded through transactions on the asset detail.",
+    "Per unit: value = quantity × price per unit. The starting quantity is recorded as the opening holding; later changes go through transactions on the asset detail.",
+  formQty: "Quantity",
+  formQtyPh: "e.g. 10",
+  formQtyRequired:
+    "Quantity is required for an asset valued per unit (e.g. 10 grams).",
+  formQtyInvalid:
+    "Quantity must be a number above 0, with at most 8 decimal places.",
   formCode: "Internal code (optional)",
   formCodePh: "e.g. GOLD-01",
   formCustodian: "Location / custodian (optional)",

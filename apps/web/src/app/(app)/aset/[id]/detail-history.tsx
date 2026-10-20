@@ -89,7 +89,9 @@ function ValueCell({ ev }: { ev: AssetHistoryEventDto }) {
   return (
     <div className="ad-valcell">
       <span className="ad-num">
-        {ev.valueBefore != null ? money.formatExact(idr(ev.valueBefore)) : "—"}
+        {ev.valueBefore != null && ev.kind !== "opening"
+          ? money.formatExact(idr(ev.valueBefore))
+          : "—"}
         <ArrowRight aria-hidden="true" className="ad-arrow" />
         <strong>{money.formatExact(idr(ev.value))}</strong>
       </span>

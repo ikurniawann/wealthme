@@ -97,6 +97,10 @@ export function assetChange(
   const latestIdx = history.findIndex((h) => VALUATION_KINDS.has(h.kind));
   if (latestIdx < 0) return NO_CHANGE;
   const latest = history[latestIdx]!;
+  // An opening is the first value, never a change.
+  if (latest.kind === "opening") return NO_CHANGE;
+  // A per-unit row worth Rp0 was priced at quantity 0 (legacy): no change.
+  if (latest.pricePerUnit !== null && latest.value === 0n) return NO_CHANGE;
   let crossed = false;
   for (const h of history.slice(latestIdx + 1)) {
     if (QUANTITY_KINDS.has(h.kind)) {
@@ -107,6 +111,8 @@ export function assetChange(
     const comparisonDate = dbDateToYmd(h.effectiveDate);
     if (!crossed) {
       const prev = new D(h.value.toString());
+      // A6 — a zero/unknown baseline is "Belum ada valuasi pembanding".
+      if (!prev.greaterThan(0)) return NO_CHANGE;
       const diff = new D(latest.value.toString()).minus(prev);
       return {
         amountIdr: money(diff),
@@ -117,7 +123,8 @@ export function assetChange(
     }
     const a = latest.pricePerUnit;
     const b = h.pricePerUnit;
-    if (!a || !b || !quantity || latest.currency !== "IDR") return NO_CHANGE;
+    if (!a || !b || !b.greaterThan(0) || !quantity) return NO_CHANGE;
+    if (latest.currency !== "IDR") return NO_CHANGE;
     if (h.currency !== "IDR") return NO_CHANGE;
     const diff = a.minus(b);
     return {

@@ -458,6 +458,16 @@ function assertPriced(
       `Kuantitas ${asset.name} belum diketahui. Catat kepemilikan awal (kuantitas) dulu, atau isi nilai total.`,
     );
   }
+  // Price × 0 would store a fake Rp0 valuation: refuse it instead.
+  if (
+    v.pricePerUnit !== null &&
+    quantity !== null &&
+    !quantity.greaterThan(0)
+  ) {
+    throw new BadRequestException(
+      `Jumlah ${asset.name} pada tanggal efektif ini 0, jadi harga per unit tidak bisa dinilai. Catat kepemilikan awal atau pembelian lebih dulu, atau pilih tanggal setelahnya.`,
+    );
+  }
 }
 
 /** The valuation compared against (A6), by effective order. */
