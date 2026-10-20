@@ -181,11 +181,13 @@ var INVESTMENT_PLATFORMS = [
     color: "#1E5EFF",
     mark: "Aj",
     // Saham, reksa dana and saham AS (via Ajaib Alpha, Feb 2025) per
-    // ajaib.co.id. Kripto is a separate app (Ajaib Kripto — record it under
-    // "custom") and obligasi could not be verified, so both are left out.
-    // Fractional US shares not confirmed.
-    products: ["saham_idx", "saham_us", "reksa_dana"],
-    pockets: ["rdn", "general"],
+    // ajaib.co.id, plus kripto: Ajaib Kripto is a separate app under the
+    // same brand and login, and users record it as "Ajaib" (client report
+    // 2026-10-21: "ajaib tidak bisa nambah wallet crypto"). Its IDR crypto
+    // balance is a "crypto" pocket. Obligasi could not be verified, so it is
+    // left out. Fractional US shares not confirmed.
+    products: ["saham_idx", "saham_us", "reksa_dana", "kripto"],
+    pockets: ["rdn", "crypto", "general"],
     fractionalUsShares: false,
     syncMode: "manual",
     source: "https://ajaib.co.id"
@@ -263,8 +265,10 @@ var INVESTMENT_PLATFORMS = [
     color: "#2F54EB",
     mark: "Pl",
     // pluang.com: saham ID, fractional saham AS, kripto, reksa dana, emas.
+    // A platform that sells kripto must offer a crypto pocket too, or the
+    // user can't keep a "Dana Kripto" wallet there.
     products: ["saham_idx", "saham_us", "reksa_dana", "emas", "kripto"],
-    pockets: ["general"],
+    pockets: ["general", "crypto"],
     fractionalUsShares: true,
     syncMode: "manual",
     source: "https://pluang.com"
@@ -978,7 +982,10 @@ function optional(schema) {
 var text = (max = TEXT_MAX) => optional(z10.string().max(max));
 var area = () => optional(z10.string().regex(AREA_RE, "Luas harus angka, maks. 2 desimal"));
 var year = () => optional(
-  z10.string().regex(YEAR_RE, "Tahun harus 4 angka").refine((v) => Number(v) >= 1e3 && Number(v) <= 2200, "Tahun tidak valid")
+  z10.string().regex(YEAR_RE, "Tahun harus 4 angka").refine(
+    (v) => Number(v) >= 1e3 && Number(v) <= 2200,
+    "Tahun tidak valid"
+  )
 );
 var ymd = () => optional(z10.string().refine(isRealYmd, "Tanggal harus yyyy-mm-dd"));
 var AssetDetailsSchemas = {
