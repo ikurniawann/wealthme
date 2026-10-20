@@ -21,6 +21,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { applyCashLeg } from "./asset-cash";
 import {
   actorViewer,
+  assertWritable,
   ASSET_TX_ATTEMPTS,
   holdingStateOf,
   loadState,
@@ -76,7 +77,7 @@ export class AssetTransactionsService {
           familyGroupId,
           assetId,
           actorViewer(actor),
-          "write",
+          "lock",
         );
         const existing = await tx.assetTransaction.findUnique({
           where: {
@@ -101,6 +102,7 @@ export class AssetTransactionsService {
           }
           return this.result(tx, asset, existing, true);
         }
+        assertWritable(asset);
         const row = normalize(input);
         const draft = draftRow(asset, row, {
           id: randomUUID(),

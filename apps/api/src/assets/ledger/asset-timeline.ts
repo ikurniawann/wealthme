@@ -287,14 +287,8 @@ export function todayChange(
   const prev = t.ordered[prevIdx];
   if (!prev || dbDateToYmd(prev.effectiveDate) !== yesterday) return NO_CHANGE;
   const latestIdx = lastValuationIndex(t);
-  if (latestIdx === prevIdx) {
-    const base = new D(t.states.get(prev.id)!.value.toString());
-    return {
-      amountIdr: "0",
-      percent: percentOf(new D(0), base),
-      comparisonDate: yesterday,
-      period: "previous_day",
-    };
-  }
+  // No valuation today: nothing was measured today ("Belum ada valuasi
+  // pembanding"), never a fabricated 0%.
+  if (latestIdx === prevIdx) return NO_CHANGE;
   return changeAt(t, latestIdx, "previous_day", todayYmd);
 }

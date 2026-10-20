@@ -30,7 +30,9 @@ export async function buildLedger(
   tx: TxClient,
   asset: Asset,
 ): Promise<AssetLedgerDto> {
-  const state = await loadState(tx, asset.id);
+  // A legacy ledger that no longer replays (e.g. an oversold history) is
+  // still listed; the next write reports the conflict.
+  const state = await loadState(tx, asset.id, {}, undefined, "lenient");
   const t = timelineOf(asset, state);
   const index = new Map(t.ordered.map((r, i) => [r.id, i]));
   const [allHistory, allTx] = await Promise.all([

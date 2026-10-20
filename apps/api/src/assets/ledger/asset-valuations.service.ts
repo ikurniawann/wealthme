@@ -15,6 +15,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 
 import {
   actorViewer,
+  assertWritable,
   ASSET_TX_ATTEMPTS,
   holdingStateOf,
   loadState,
@@ -160,9 +161,8 @@ export class AssetValuationsService {
           familyGroupId,
           assetId,
           actorViewer(actor),
-          "write",
+          "lock",
         );
-        const v = normalizeValuation(input, asset.valuationModel);
         const existing = await tx.assetHistory.findUnique({
           where: { assetId_idempotencyKey: { assetId, idempotencyKey: key } },
         });
@@ -175,7 +175,10 @@ export class AssetValuationsService {
             )) ?? rowAsInput(existing);
           let same = false;
           try {
-            same = sameValuation(v, normalizeValuation(original, null));
+            same = sameValuation(
+              normalizeValuation(input, null),
+              normalizeValuation(original, null),
+            );
           } catch {
             same = false;
           }
@@ -189,6 +192,8 @@ export class AssetValuationsService {
           }
           return this.result(tx, asset, existing.id, true);
         }
+        assertWritable(asset);
+        const v = normalizeValuation(input, asset.valuationModel);
         const row = await this.insert(tx, asset, v, actor.userId, key);
         await writeAudit(
           tx,
@@ -279,6 +284,8 @@ export class AssetValuationsService {
             (merged as unknown as Record<string, unknown>)[k] = val;
           }
         }
+        // A cleared source falls back to "manual" (never a 400 on edit).
+        if (!merged.source?.trim()) merged.source = "manual";
         if (input.pricePerUnit !== undefined) merged.value = undefined;
         if (input.value !== undefined) merged.pricePerUnit = undefined;
         const v = normalizeValuation(merged, null);

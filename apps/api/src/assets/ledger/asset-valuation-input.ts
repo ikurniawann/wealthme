@@ -173,7 +173,7 @@ export function rowAsInput(h: AssetHistory): AssetValuationInput {
     effectiveDate: h.effectiveDate.toISOString().slice(0, 10),
     effectiveTime: h.hasTime ? timeInZone(h.effectiveAt, h.timeZone) : null,
     timeZone: h.timeZone,
-    source: h.source,
+    source: h.source || "manual",
     reference: h.reference,
     note: h.note,
   };

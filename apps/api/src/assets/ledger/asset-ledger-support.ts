@@ -47,15 +47,20 @@ export function actorViewer(actor: AssetActor): AssetViewer {
   };
 }
 
-/** Locks the asset row (FOR UPDATE) and applies the A7 row scope (404). */
+/**
+ * Loads the asset with the A7 row scope (404). `lock` and `write` take the
+ * row FOR UPDATE; `check` and `write` also refuse a linked or archived
+ * asset (`lock` leaves that to the caller, so an idempotent replay can
+ * answer first).
+ */
 export async function lockAsset(
   tx: TxClient,
   familyGroupId: string,
   assetId: string,
   viewer: AssetViewer | undefined,
-  mode: "read" | "check" | "write",
+  mode: "read" | "check" | "lock" | "write",
 ): Promise<Asset> {
-  if (mode === "write") {
+  if (mode === "write" || mode === "lock") {
     await tx.$queryRaw`
       SELECT "id" FROM "assets"
       WHERE "id" = ${assetId} AND "familyGroupId" = ${familyGroupId}
@@ -65,7 +70,13 @@ export async function lockAsset(
     where: { id: assetId, familyGroupId, AND: [viewerAssetWhere(viewer)] },
   });
   if (!asset) throw new NotFoundException("Asset not found");
-  if (mode !== "read") {
+  if (mode === "check" || mode === "write") assertWritable(asset);
+  return asset;
+}
+
+/** Linked → write through Investasi; archived → no new records (409). */
+export function assertWritable(asset: Asset): void {
+  {
     if (asset.investmentId) {
       throw new ConflictException({
         statusCode: 409,
@@ -82,7 +93,6 @@ export async function lockAsset(
       });
     }
   }
-  return asset;
 }
 
 export function txToLedgerRow(t: AssetTransaction): LedgerRow {
@@ -154,6 +164,8 @@ export async function loadState(
   assetId: string,
   override: { upsert?: AssetTransaction; dropId?: string } = {},
   selfId?: string,
+  /** `lenient` (reads): an invalid stored ledger is shown, not a 409. */
+  mode: "strict" | "lenient" = "strict",
 ): Promise<AssetState> {
   const [all, history] = await Promise.all([
     tx.assetTransaction.findMany({ where: { assetId } }),
@@ -167,7 +179,9 @@ export async function loadState(
   );
   if (override.upsert) txs = [...txs, override.upsert];
   const replay = replayLedger(txs.map(txToLedgerRow));
-  if (replay.invalid) holdingsConflict(replay.invalid, selfId ?? "");
+  if (replay.invalid && mode === "strict") {
+    holdingsConflict(replay.invalid, selfId ?? "");
+  }
   const byId = new Map(txs.map((t) => [t.id, t]));
   const steps = new Map<string, TxStep>();
   for (const s of replay.steps) {

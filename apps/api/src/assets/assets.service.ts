@@ -9,7 +9,11 @@ import { type Decimal } from "@prisma/client/runtime/library";
 
 import { isRowScoped } from "../common/utils/privacy.util";
 import { runSerializableWithRetry } from "../common/utils/serializable-retry.util";
-import { dbDateToYmd } from "../investments/ledger/ledger-dates";
+import {
+  dbDateToYmd,
+  jakartaTodayYmd,
+  ymdToDbDate,
+} from "../investments/ledger/ledger-dates";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -258,42 +262,51 @@ export class AssetsService {
       dto.categoryId,
     );
 
+    // The opening value and its history row commit together. The row is
+    // date-only on the Jakarta calendar day (controller ruling): a valuation
+    // entered for today — dated or timed — then sorts after it and becomes
+    // current.
+    const today = ymdToDbDate(jakartaTodayYmd());
     const asset = await uniqueCode(
-      this.prisma.asset.create({
-        data: {
-          ...identityFields(dto),
-          familyGroupId,
-          // A7 — a row-scoped member owns what she records, or she could
-          // not see it afterwards.
-          ownerUserId:
-            viewer && isRowScoped(viewer.member) ? viewer.userId : null,
-          name: dto.name,
-          type: dto.type,
-          currentValue: BigInt(dto.currentValue),
-          currency: dto.currency ?? "IDR",
-          notes: dto.notes ?? null,
-          valueChangeRatePct: dto.valueChangeRatePct ?? null,
-          valueChangeMode: dto.valueChangeMode ?? "percent",
-          valueChangeAmount:
-            dto.valueChangeAmount != null
-              ? BigInt(dto.valueChangeAmount)
+      this.prisma.$transaction(async (tx) => {
+        const created = await tx.asset.create({
+          data: {
+            ...identityFields(dto),
+            familyGroupId,
+            // A7 — a row-scoped member owns what she records, or she could
+            // not see it afterwards.
+            ownerUserId:
+              viewer && isRowScoped(viewer.member) ? viewer.userId : null,
+            name: dto.name,
+            type: dto.type,
+            currentValue: BigInt(dto.currentValue),
+            currency: dto.currency ?? "IDR",
+            notes: dto.notes ?? null,
+            valueChangeRatePct: dto.valueChangeRatePct ?? null,
+            valueChangeMode: dto.valueChangeMode ?? "percent",
+            valueChangeAmount:
+              dto.valueChangeAmount != null
+                ? BigInt(dto.valueChangeAmount)
+                : null,
+            categoryId: categoryId ?? null,
+            acquisitionDate: dto.acquisitionDate
+              ? new Date(dto.acquisitionDate)
               : null,
-          categoryId: categoryId ?? null,
-          acquisitionDate: dto.acquisitionDate
-            ? new Date(dto.acquisitionDate)
-            : null,
-        },
+          },
+        });
+        await tx.assetHistory.create({
+          data: {
+            assetId: created.id,
+            value: created.currentValue,
+            kind: "opening",
+            effectiveAt: today,
+            effectiveDate: today,
+            hasTime: false,
+          },
+        });
+        return created;
       }),
     );
-
-    await this.prisma.assetHistory.create({
-      data: {
-        assetId: asset.id,
-        value: asset.currentValue,
-        kind: "opening",
-        ...nowEffectiveFields(),
-      },
-    });
 
     return toAssetDto(asset);
   }
@@ -328,49 +341,83 @@ export class AssetsService {
         ? await this.resolveCategoryId(familyGroupId, dto.categoryId)
         : existing.categoryId;
 
-    const updated = await uniqueCode(
-      this.prisma.asset.update({
-        where: { id, familyGroupId },
-        data: {
-          ...identityFields(dto),
-          name: dto.name ?? existing.name,
-          type: dto.type ?? existing.type,
-          currentValue: newValue,
-          currency: dto.currency ?? existing.currency,
-          notes: dto.notes !== undefined ? (dto.notes ?? null) : existing.notes,
-          valueChangeRatePct:
-            dto.valueChangeRatePct !== undefined
-              ? dto.valueChangeRatePct
-              : existing.valueChangeRatePct,
-          valueChangeMode: dto.valueChangeMode ?? existing.valueChangeMode,
-          valueChangeAmount:
-            dto.valueChangeAmount !== undefined
-              ? dto.valueChangeAmount != null
-                ? BigInt(dto.valueChangeAmount)
-                : null
-              : existing.valueChangeAmount,
-          categoryId: categoryId ?? null,
-          acquisitionDate:
-            dto.acquisitionDate !== undefined
-              ? dto.acquisitionDate
-                ? new Date(dto.acquisitionDate)
-                : null
-              : existing.acquisitionDate,
-        },
-      }),
-    );
+    const data = {
+      ...identityFields(dto),
+      name: dto.name ?? existing.name,
+      type: dto.type ?? existing.type,
+      currency: dto.currency ?? existing.currency,
+      notes: dto.notes !== undefined ? (dto.notes ?? null) : existing.notes,
+      valueChangeRatePct:
+        dto.valueChangeRatePct !== undefined
+          ? dto.valueChangeRatePct
+          : existing.valueChangeRatePct,
+      valueChangeMode: dto.valueChangeMode ?? existing.valueChangeMode,
+      valueChangeAmount:
+        dto.valueChangeAmount !== undefined
+          ? dto.valueChangeAmount != null
+            ? BigInt(dto.valueChangeAmount)
+            : null
+          : existing.valueChangeAmount,
+      categoryId: categoryId ?? null,
+      acquisitionDate:
+        dto.acquisitionDate !== undefined
+          ? dto.acquisitionDate
+            ? new Date(dto.acquisitionDate)
+            : null
+          : existing.acquisitionDate,
+    };
 
-    if (dto.currentValue != null && newValue !== existing.currentValue) {
-      await this.prisma.assetHistory.create({
-        data: {
-          assetId: id,
-          value: newValue,
-          kind: "valuation",
-          ...nowEffectiveFields(),
-        },
-      });
+    if (dto.currentValue == null || newValue === existing.currentValue) {
+      const updated = await uniqueCode(
+        this.prisma.asset.update({ where: { id, familyGroupId }, data }),
+      );
+      return toAssetDto(updated);
     }
 
+    // A new value is a valuation: same path as Update Nilai (lock, linked /
+    // archived guards, effective order, rebuild, audit). Never cash or cost.
+    const updated = await uniqueCode(
+      runSerializableWithRetry(this.prisma, async (tx) => {
+        const asset = await lockAsset(tx, familyGroupId, id, viewer, "write");
+        const withInfo = await tx.asset.update({
+          where: { id, familyGroupId },
+          data,
+        });
+        const effective = nowEffectiveFields();
+        const row = await this.valuations.insert(
+          tx,
+          withInfo,
+          {
+            ...effective,
+            effectiveYmd: dbDateToYmd(effective.effectiveDate),
+            timeZone: null,
+            pricePerUnit: null,
+            amount: new Prisma.Decimal(newValue.toString()),
+            currency: "IDR",
+            fxRate: null,
+            source: "manual",
+            reference: null,
+            note: null,
+          },
+          viewer?.userId ?? null,
+          null,
+        );
+        if (viewer?.userId) {
+          await tx.auditLog.create({
+            data: {
+              userId: viewer.userId,
+              familyGroupId,
+              entity: "asset_valuation",
+              entityId: row.id,
+              action: "create",
+              before: { currentValue: asset.currentValue.toString() },
+              after: { value: newValue.toString(), via: "PATCH /assets" },
+            },
+          });
+        }
+        return tx.asset.findUniqueOrThrow({ where: { id } });
+      }),
+    );
     return toAssetDto(updated);
   }
 

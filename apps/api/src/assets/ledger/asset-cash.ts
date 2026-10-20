@@ -1,6 +1,6 @@
 import { BadRequestException } from "@nestjs/common";
 
-import { ledgerInstant } from "../../investments/ledger/ledger-dates";
+import { floatingCashInstant } from "../../investments/ledger/ledger-dates";
 import {
   assertUsableCashAccount,
   lockAccounts,
@@ -118,7 +118,9 @@ export async function applyCashLeg(
   if (!newLeg || !p.row) return null;
 
   const amount = newLeg.delta < 0n ? -newLeg.delta : newLeg.delta;
-  const occurredAt = ledgerInstant(
+  // Floating, like every Transaction.occurredAt: lists bucket rows by the
+  // UTC day, so a date-only trade must land on its own calendar date.
+  const occurredAt = floatingCashInstant(
     p.row.effectiveDate,
     p.row.effectiveTime,
     p.row.timeZone,
