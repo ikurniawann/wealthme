@@ -253,6 +253,11 @@ export class InsurancesController {
         entity: "Insurance",
         entityId: id,
         fieldPrefix: "pay",
+        // An idempotent replay wrote nothing — no fx_conversions audit row.
+        locate: (result) => ({
+          entity: "Insurance",
+          entityId: result.replayed ? null : id,
+        }),
         dto: { ...dto, idempotencyKey: key },
         spec: FX_FIELD_SPECS.insurancePayment,
       },

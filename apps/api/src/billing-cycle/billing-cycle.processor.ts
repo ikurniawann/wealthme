@@ -4,14 +4,17 @@ import { Logger } from "@nestjs/common";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { InsuranceRemindersService } from "../insurances/insurance-reminders.service";
 import {
-  advanceToOnOrAfter,
   isRecurringPeriod,
+  jakartaDayStartInstant,
+  nextPremiumDue,
   scheduleOptionsFor,
   todayInTimeZone,
+  ymd,
 } from "../insurances/premium-schedule.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
+import type { PremiumPeriod } from "@prisma/client";
 import type { Job } from "bullmq";
 
 /** Advance a date by whole months, repeating until it's in the future. */
@@ -57,9 +60,12 @@ export class BillingCycleProcessor extends WorkerHost {
 
     // Asuransi S1 — the premium schedule lives in nextPremiumDueDate. Only
     // policies the user opted into auto-advancing (autoRenewDate) move past a
-    // missed due; recurring periods only (single/custom have no step), never
-    // beyond the premium payment end. The legacy renewalDate is mirrored
-    // during the rollback window.
+    // due, recurring periods only, never beyond the premium payment end.
+    // A missed due is NEVER skipped silently: the schedule moves only over
+    // dues that have a payment row; the first unpaid one stays as
+    // nextPremiumDueDate, so the policy reads `premiumDueStatus: overdue`
+    // and the reminder sweep below sends its one "terlambat" notice. The
+    // legacy renewalDate is mirrored (null when the schedule ends).
     const today = todayInTimeZone(now);
     const insurances = await this.prisma.insurance.findMany({
       where: { autoRenewDate: true, nextPremiumDueDate: { lt: today } },
@@ -75,15 +81,11 @@ export class BillingCycleProcessor extends WorkerHost {
       if (!ins.nextPremiumDueDate || !isRecurringPeriod(ins.premiumPeriod)) {
         continue;
       }
-      const next = advanceToOnOrAfter(
-        ins.nextPremiumDueDate,
-        ins.premiumPeriod,
-        today,
-        scheduleOptionsFor(ins),
-      );
+      const next = await this.advancePastPaidDues(ins, today);
+      if (next === undefined) continue;
       await this.prisma.insurance.update({
         where: { id: ins.id },
-        data: { nextPremiumDueDate: next, ...(next && { renewalDate: next }) },
+        data: { nextPremiumDueDate: next, renewalDate: next },
       });
       this.logger.log(
         `Advanced insurance ${ins.id} nextPremiumDueDate to ${next?.toISOString().slice(0, 10) ?? "none (schedule ended)"}`,
@@ -97,5 +99,62 @@ export class BillingCycleProcessor extends WorkerHost {
     if (liabilities.length === 0 && insurances.length === 0) {
       this.logger.log("No due dates needed advancing");
     }
+  }
+
+  /**
+   * Walks the schedule from the current due over every PAID past due and
+   * stops at the first unpaid one. Returns the new next due (null when the
+   * schedule ended), or undefined when nothing changes (the current due is
+   * unpaid). A payment counts for a due when its dueDate is that due; a
+   * legacy payment without a due counts once, for the due whose period
+   * window [due, next due) its paidAt falls in.
+   */
+  private async advancePastPaidDues(
+    ins: {
+      id: string;
+      nextPremiumDueDate: Date | null;
+      premiumPeriod: PremiumPeriod;
+      coverageStartDate: Date | null;
+      premiumPaymentEndDate: Date | null;
+    },
+    today: Date,
+  ): Promise<Date | null | undefined> {
+    const start = ins.nextPremiumDueDate!;
+    const payments = await this.prisma.insurancePayment.findMany({
+      where: { insuranceId: ins.id },
+      select: { dueDate: true, paidAt: true },
+    });
+    const paidDues = new Set(
+      payments.filter((p) => p.dueDate).map((p) => ymd(p.dueDate)),
+    );
+    const undated = payments
+      .filter((p) => !p.dueDate)
+      .map((p) => p.paidAt.getTime());
+    const opts = scheduleOptionsFor(ins, start);
+    let due: Date | null = start;
+    let moved = false;
+    for (let i = 0; due && due < today && i < 1200; i++) {
+      const following: Date | null = nextPremiumDue(
+        due,
+        ins.premiumPeriod,
+        opts,
+      );
+      let paid = paidDues.has(ymd(due));
+      if (!paid) {
+        const from = jakartaDayStartInstant(due).getTime();
+        const to = following
+          ? jakartaDayStartInstant(following).getTime()
+          : Number.POSITIVE_INFINITY;
+        const idx = undated.findIndex((t) => t >= from && t < to);
+        if (idx >= 0) {
+          undated.splice(idx, 1);
+          paid = true;
+        }
+      }
+      if (!paid) break;
+      due = following;
+      moved = true;
+    }
+    return moved ? due : undefined;
   }
 }

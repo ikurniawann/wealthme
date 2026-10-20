@@ -278,8 +278,9 @@ WHERE "renewalDate" IS NOT NULL
 -- life_sum_assured for jiwa, otherwise other — never guessed further.
 -- Zero/empty coverage is not turned into a benefit (empty data never becomes
 -- a value). coverageAmount itself is left populated. Legacy amounts were
--- entered in IDR (the web never sent a currency), so the policy currency is
--- used as recorded.
+-- entered in IDR (the web never sent a currency, and the FX layer converts
+-- foreign input to IDR before storing), so the benefit is recorded in IDR
+-- whatever the policy's label currency says.
 INSERT INTO "insurance_benefits"
   ("id", "insuranceId", "kind", "amount", "currency", "isPrimary", "confirmed", "sortOrder", "createdAt", "updatedAt")
 SELECT
@@ -287,7 +288,7 @@ SELECT
   i."id",
   (CASE WHEN i."type" = 'jiwa' THEN 'life_sum_assured' ELSE 'other' END)::"InsuranceBenefitKind",
   i."coverageAmount"::numeric,
-  i."currency",
+  'IDR',
   true,
   false,
   0,

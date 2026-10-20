@@ -373,9 +373,22 @@ export class DashboardService {
 
     // Asuransi S6 — the shared helper: only confirmed value of policies with
     // includeInNetWorth, counted once; never sum assured or premiums paid.
-    const totalInsurance = isRestricted
-      ? 0n
-      : await this.insuranceNetWorth.total(familyGroupId);
+    // S9 parity with accounts: a row-scoped viewer counts only the policies
+    // they can see (holder/payer/insured/share/creator); everyone else gets
+    // the family-wide figure.
+    const totalInsurance = await this.insuranceNetWorth.total(
+      familyGroupId,
+      isRestricted
+        ? {
+            userId: viewerUserId ?? null,
+            role:
+              viewerRole && typeof viewerRole === "object"
+                ? (viewerRole.role ?? null)
+                : (viewerRole ?? null),
+            rowScoped: true,
+          }
+        : undefined,
+    );
 
     const liabilityRecords = isRestricted
       ? []

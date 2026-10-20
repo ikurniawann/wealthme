@@ -144,15 +144,40 @@ export function duesInRange(
   return out;
 }
 
-/** The anchor day a policy's schedule keeps (coverage start, else the due itself). */
-export function scheduleOptionsFor(policy: {
-  coverageStartDate: Date | null;
-  premiumPaymentEndDate: Date | null;
-}): ScheduleOptions {
+/**
+ * The anchor day a policy's schedule keeps. The due's OWN day wins (a user
+ * who pays on the 5th keeps paying on the 5th even when coverage started on
+ * the 1st). Only a due sitting on a CLAMPED month end (28 Feb for a 31st
+ * schedule) takes the coverage-start day back, so the schedule returns to
+ * the 31st instead of drifting to the 28th. Without a due, coverage start.
+ */
+export function scheduleOptionsFor(
+  policy: {
+    coverageStartDate: Date | null;
+    premiumPaymentEndDate: Date | null;
+  },
+  due?: Date | null,
+): ScheduleOptions {
   return {
-    anchorDay: policy.coverageStartDate?.getUTCDate(),
+    anchorDay: anchorDayFor(policy.coverageStartDate, due ?? null),
     paymentEndDate: policy.premiumPaymentEndDate,
   };
+}
+
+function anchorDayFor(
+  coverageStart: Date | null,
+  due: Date | null,
+): number | undefined {
+  const startDay = coverageStart?.getUTCDate();
+  if (!due) return startDay;
+  const day = due.getUTCDate();
+  const monthEnd = new Date(
+    Date.UTC(due.getUTCFullYear(), due.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+  if (startDay !== undefined && day === monthEnd && startDay > day) {
+    return startDay;
+  }
+  return day;
 }
 
 /**
@@ -224,4 +249,59 @@ export function monthlyBudgetContribution(
   if (months === null || premiumAmount <= 0n) return 0n;
   const m = BigInt(months);
   return (premiumAmount * 2n + m) / (2n * m);
+}
+
+/**
+ * True when `due` is a real due of the policy's premium schedule: the
+ * current next due, a later due walked forward from it, an earlier
+ * (missed) due walked backward from it on the same anchor, or a due walked
+ * forward from the coverage start. Anything else (e.g. a typo'd 06 Nov when
+ * the schedule is the 5th) is not a due and must not be paid against.
+ */
+export function isScheduledDue(
+  policy: {
+    nextPremiumDueDate: Date | null;
+    premiumPeriod: PremiumPeriod;
+    coverageStartDate: Date | null;
+    premiumPaymentEndDate: Date | null;
+  },
+  due: Date,
+): boolean {
+  const target = toDateOnly(due);
+  const next = policy.nextPremiumDueDate
+    ? toDateOnly(policy.nextPremiumDueDate)
+    : null;
+  if (next && sameDay(next, target)) return true;
+  const months = MONTHS_PER_PERIOD[policy.premiumPeriod];
+  if (months === null) return false;
+  const start = policy.coverageStartDate
+    ? toDateOnly(policy.coverageStartDate)
+    : null;
+  if (start && target < start) return false;
+
+  if (next) {
+    const opts = scheduleOptionsFor(policy, next);
+    if (target > next) {
+      return (
+        duesInRange(next, policy.premiumPeriod, target, target, opts).length > 0
+      );
+    }
+    for (let k = 1; k <= MAX_SCHEDULE_STEPS; k++) {
+      const d = addMonthsClamped(next, -k * months, opts.anchorDay);
+      if (sameDay(d, target)) return true;
+      if (d < target) break;
+    }
+  }
+  if (start) {
+    return (
+      duesInRange(
+        start,
+        policy.premiumPeriod,
+        target,
+        target,
+        scheduleOptionsFor(policy, start),
+      ).length > 0
+    );
+  }
+  return false;
 }

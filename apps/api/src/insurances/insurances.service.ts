@@ -70,15 +70,21 @@ function legacyBenefitKind(type: InsuranceType) {
 }
 
 /**
- * LEGACY `coverageAmount` (BigInt, read by quickinput/anggaran) mirrors the
- * primary benefit while it is an amount in the policy currency.
+ * LEGACY `coverageAmount` (BigInt, read by quickinput/anggaran) is an IDR
+ * amount (controller ruling: like premiumAmount, it is stored in IDR). It
+ * mirrors the primary benefit only while that benefit is in IDR.
  */
+const LEGACY_AMOUNT_CURRENCY = "IDR";
+
 function coverageFromBenefits(
   benefits: CreateInsuranceBenefitDto[],
   currency: string,
 ): bigint | null {
   const primary = benefits.find((b) => b.isPrimary) ?? benefits[0];
-  if (!primary?.amount || (primary.currency ?? currency) !== currency) {
+  if (
+    !primary?.amount ||
+    (primary.currency ?? currency) !== LEGACY_AMOUNT_CURRENCY
+  ) {
     return null;
   }
   return BigInt(
@@ -404,7 +410,7 @@ export class InsurancesService {
             {
               kind: legacyBenefitKind(dto.type),
               amount: dto.coverageAmount,
-              currency,
+              currency: LEGACY_AMOUNT_CURRENCY,
               isPrimary: true,
             },
           ]
@@ -512,7 +518,6 @@ export class InsurancesService {
         tx,
         id,
         existing.type,
-        currency,
         coverageAmount,
       );
     }
@@ -568,7 +573,6 @@ export class InsurancesService {
     tx: TxClient,
     insuranceId: string,
     type: InsuranceType,
-    currency: string,
     amount: bigint | null,
   ): Promise<void> {
     const primary = await tx.insuranceBenefit.findFirst({
@@ -593,7 +597,7 @@ export class InsurancesService {
         insuranceId,
         kind: legacyBenefitKind(type),
         amount: value,
-        currency,
+        currency: LEGACY_AMOUNT_CURRENCY,
         isPrimary: true,
         confirmed: true,
       },
@@ -615,25 +619,30 @@ export class InsurancesService {
     const existing = await this.prisma.insurance.findUniqueOrThrow({
       where: { id, familyGroupId },
     });
-    const budget = await this.prisma.budget.findFirst({
-      where: { familyGroupId, insuranceId: id },
-      select: { id: true },
+    // Guard counts and the delete run in ONE serializable transaction, so a
+    // payment/valuation/document written between the check and the delete
+    // can never be cascaded away silently.
+    await runSerializableWithRetry(this.prisma, async (tx) => {
+      const budget = await tx.budget.findFirst({
+        where: { familyGroupId, insuranceId: id },
+        select: { id: true },
+      });
+      if (budget) {
+        throw new ConflictException(
+          `Tidak dapat menghapus "${existing.name}" — hapus dulu anggaran (budget) terkait (id ${budget.id})`,
+        );
+      }
+      const [payments, valuations, documents] = await Promise.all([
+        tx.insurancePayment.count({ where: { insuranceId: id } }),
+        tx.insuranceValuation.count({ where: { insuranceId: id } }),
+        tx.insuranceDocument.count({ where: { insuranceId: id } }),
+      ]);
+      if (payments + valuations + documents > 0) {
+        throw new ConflictException(
+          `Tidak dapat menghapus "${existing.name}" — polis ini memiliki riwayat pembayaran (${payments}), nilai polis (${valuations}) atau dokumen (${documents}). Ubah status polis menjadi tidak aktif atau berakhir; riwayatnya tetap tersimpan.`,
+        );
+      }
+      await tx.insurance.delete({ where: { id, familyGroupId } });
     });
-    if (budget) {
-      throw new ConflictException(
-        `Tidak dapat menghapus "${existing.name}" — hapus dulu anggaran (budget) terkait (id ${budget.id})`,
-      );
-    }
-    const [payments, valuations, documents] = await Promise.all([
-      this.prisma.insurancePayment.count({ where: { insuranceId: id } }),
-      this.prisma.insuranceValuation.count({ where: { insuranceId: id } }),
-      this.prisma.insuranceDocument.count({ where: { insuranceId: id } }),
-    ]);
-    if (payments + valuations + documents > 0) {
-      throw new ConflictException(
-        `Tidak dapat menghapus "${existing.name}" — polis ini masih memiliki riwayat pembayaran (${payments}), nilai polis (${valuations}) atau dokumen (${documents}). Ubah statusnya menjadi tidak aktif, atau hapus riwayat tersebut terlebih dahulu.`,
-      );
-    }
-    await this.prisma.insurance.delete({ where: { id, familyGroupId } });
   }
 }

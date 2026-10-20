@@ -33,12 +33,14 @@ import {
   monthlyBudgetContribution,
   currentPremiumWindow,
   isRecurringPeriod,
+  isScheduledDue,
   jakartaDayStartInstant,
   nextPremiumDue,
   parseDateOnly,
   sameDay,
   scheduleOptionsFor,
   todayInTimeZone,
+  toDateOnly,
   ymd,
 } from "./premium-schedule.util";
 
@@ -91,13 +93,42 @@ export class InsurancePaymentsService {
         AND t."type" = 'expense'
         AND NOT EXISTS (SELECT 1 FROM "insurance_payments" p WHERE p."transactionId" = t."id")
       ON CONFLICT ("transactionId") DO NOTHING`;
+    // A NULL nextPremiumDueDate with a legacy renewalDate: the old image
+    // set a due the new column never saw. (A schedule that ENDED nulls both
+    // columns, so this cannot resurrect a finished schedule.)
     await this.prisma.$executeRaw`
       UPDATE "insurances"
       SET "nextPremiumDueDate" = "renewalDate"::date
       WHERE "familyGroupId" = ${familyGroupId}
         AND "renewalDate" IS NOT NULL
+        AND "nextPremiumDueDate" IS NULL`;
+    // The old image advanced only renewalDate: pull nextPremiumDueDate
+    // forward to it, but ONLY when that date is a real due of the schedule
+    // (never to an arbitrary date an old form typed in).
+    const ahead = await this.prisma.$queryRaw<{ id: string; renewal: Date }[]>`
+      SELECT "id", "renewalDate"::date AS "renewal"
+      FROM "insurances"
+      WHERE "familyGroupId" = ${familyGroupId}
+        AND "renewalDate" IS NOT NULL
         AND "nextPremiumDueDate" IS NOT NULL
         AND "renewalDate"::date > "nextPremiumDueDate"`;
+    for (const row of ahead) {
+      const policy = await this.prisma.insurance.findUnique({
+        where: { id: row.id },
+        select: {
+          nextPremiumDueDate: true,
+          premiumPeriod: true,
+          coverageStartDate: true,
+          premiumPaymentEndDate: true,
+        },
+      });
+      if (policy && isScheduledDue(policy, row.renewal)) {
+        await this.prisma.insurance.update({
+          where: { id: row.id },
+          data: { nextPremiumDueDate: toDateOnly(row.renewal) },
+        });
+      }
+    }
   }
 
   async listPayments(
@@ -190,6 +221,7 @@ export class InsurancePaymentsService {
         },
       });
       if (original) {
+        assertSameReplay(original, dto);
         return { payment: original, replayed: true, categoryId: null };
       }
     }
@@ -198,6 +230,11 @@ export class InsurancePaymentsService {
     const settledDue = dto.dueDate
       ? parseDateOnly(dto.dueDate)
       : insurance.nextPremiumDueDate;
+    if (dto.dueDate && settledDue && !isScheduledDue(insurance, settledDue)) {
+      throw new BadRequestException(
+        `${ymd(settledDue)} bukan jatuh tempo premi "${insurance.name}" — pilih jatuh tempo dari jadwal premi`,
+      );
+    }
     await this.assertNotAlreadyPaid(tx, insurance, settledDue, today);
 
     const sourceAccount = await tx.account.findUnique({
@@ -276,14 +313,13 @@ export class InsurancePaymentsService {
       const next = nextPremiumDue(
         settledDue,
         insurance.premiumPeriod,
-        scheduleOptionsFor(insurance),
+        scheduleOptionsFor(insurance, settledDue),
       );
+      // renewalDate mirrors it, including null when the schedule ended, so
+      // the rollback reconcile can never revive a finished schedule.
       await tx.insurance.update({
         where: { id, familyGroupId },
-        data: {
-          nextPremiumDueDate: next,
-          ...(next && { renewalDate: next }),
-        },
+        data: { nextPremiumDueDate: next, renewalDate: next },
       });
     }
 
@@ -348,6 +384,37 @@ export class InsurancePaymentsService {
       select: { id: true },
     });
     if (existing) throw conflict("sudah dibayar periode ini");
+  }
+}
+
+/**
+ * Task 22 review fix — an idempotency key is bound to its first request. A
+ * retry with the same key but a different amount, account or due is a
+ * different payment, not a retry: refuse it instead of answering with the
+ * original as if it had been honoured.
+ */
+function assertSameReplay(
+  original: {
+    amount: Prisma.Decimal;
+    accountId: string | null;
+    dueDate: Date | null;
+  },
+  dto: PayInsuranceDto,
+): void {
+  const mismatch =
+    (dto.amount !== undefined &&
+      !original.amount.equals(new Prisma.Decimal(dto.amount))) ||
+    original.accountId !== dto.sourceAccountId ||
+    (dto.dueDate !== undefined &&
+      (!original.dueDate ||
+        !sameDay(original.dueDate, parseDateOnly(dto.dueDate))));
+  if (mismatch) {
+    throw new ConflictException({
+      statusCode: 409,
+      code: "IDEMPOTENCY_KEY_REUSED",
+      message:
+        "Kunci idempoten ini sudah dipakai untuk pembayaran lain (jumlah, rekening atau jatuh tempo berbeda) — muat ulang lalu ulangi pembayaran",
+    });
   }
 }
 

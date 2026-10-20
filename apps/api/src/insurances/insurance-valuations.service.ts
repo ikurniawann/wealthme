@@ -139,6 +139,11 @@ export class InsuranceValuationsService {
   ): Promise<InsuranceValuationDto> {
     const p = await this.policy(familyGroupId, insuranceId);
     await this.assertValid(p, insuranceId, dto);
+    const currency = await this.valuationCurrency(
+      dto.fundId ?? null,
+      dto.currency,
+      p.currency,
+    );
     const source = dto.source ?? "manual";
     // A report row is never official until the user confirms it (S5/S8).
     const status =
@@ -147,7 +152,7 @@ export class InsuranceValuationsService {
       data: {
         insuranceId,
         fundId: dto.fundId ?? null,
-        currency: dto.currency ?? p.currency,
+        currency,
         units: dec(dto.units),
         navPerUnit: dec(dto.navPerUnit),
         navDate: date(dto.navDate),
@@ -190,12 +195,21 @@ export class InsuranceValuationsService {
       documentId: dto.documentId ?? existing.documentId ?? undefined,
     };
     await this.assertValid(p, insuranceId, merged);
+    const fundId = dto.fundId !== undefined ? dto.fundId : existing.fundId;
+    const currency =
+      dto.currency !== undefined || dto.fundId !== undefined
+        ? await this.valuationCurrency(
+            fundId ?? null,
+            dto.currency ?? (fundId ? undefined : existing.currency),
+            p.currency,
+          )
+        : undefined;
     const confirming = dto.status === "confirmed";
     const row = await this.prisma.insuranceValuation.update({
       where: { id: valuationId },
       data: {
         ...(dto.fundId !== undefined && { fundId: dto.fundId }),
-        ...(dto.currency !== undefined && { currency: dto.currency }),
+        ...(currency !== undefined && { currency }),
         units: dec(dto.units),
         navPerUnit: dec(dto.navPerUnit),
         navDate: date(dto.navDate),
@@ -251,6 +265,31 @@ export class InsuranceValuationsService {
     await this.policy(familyGroupId, insuranceId);
     await this.valuation(insuranceId, valuationId);
     await this.prisma.insuranceValuation.delete({ where: { id: valuationId } });
+  }
+
+  /**
+   * Task 22 review fix — a fund's value is in the FUND's currency. With a
+   * fundId the currency defaults to the fund's and a different one is
+   * refused (a USD fund's value must never be stored, and later summed, as
+   * IDR). Without a fund, the given currency or the policy's.
+   */
+  async valuationCurrency(
+    fundId: string | null,
+    requested: string | undefined,
+    policyCurrency: string,
+  ): Promise<string> {
+    if (!fundId) return requested ?? policyCurrency;
+    const fund = await this.prisma.insuranceFund.findUnique({
+      where: { id: fundId },
+      select: { currency: true, name: true },
+    });
+    if (!fund) throw new BadRequestException("fundId bukan subdana polis ini");
+    if (requested && requested !== fund.currency) {
+      throw new BadRequestException(
+        `Mata uang nilai (${requested}) berbeda dengan mata uang subdana "${fund.name}" (${fund.currency})`,
+      );
+    }
+    return fund.currency;
   }
 
   private async valuation(insuranceId: string, valuationId: string) {

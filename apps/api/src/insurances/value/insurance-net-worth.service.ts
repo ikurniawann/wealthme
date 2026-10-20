@@ -5,6 +5,10 @@ import { Prisma } from "@prisma/client";
 import { FxPort } from "../../fx/fx.port";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../../prisma/prisma.service";
+import {
+  insuranceVisibilityWhere,
+  type InsuranceViewer,
+} from "../insurance-scope.util";
 
 import {
   confirmedPolicyValue,
@@ -37,9 +41,21 @@ export class InsuranceNetWorthService {
     private readonly fx: FxPort,
   ) {}
 
-  async positions(familyGroupId: string): Promise<InsuranceNetWorthPosition[]> {
+  /**
+   * `viewer` (S9 parity with accounts): pass it for a row-scoped viewer so
+   * only the policies they can see count; omit it for a family-wide total
+   * (Master/Co-Master and other household-wide readers).
+   */
+  async positions(
+    familyGroupId: string,
+    viewer?: InsuranceViewer,
+  ): Promise<InsuranceNetWorthPosition[]> {
     const policies = await this.prisma.insurance.findMany({
-      where: { familyGroupId, includeInNetWorth: true },
+      where: {
+        familyGroupId,
+        includeInNetWorth: true,
+        ...(viewer && insuranceVisibilityWhere(viewer)),
+      },
       select: {
         id: true,
         name: true,
@@ -66,8 +82,11 @@ export class InsuranceNetWorthService {
       }));
   }
 
-  async total(familyGroupId: string): Promise<bigint> {
-    const positions = await this.positions(familyGroupId);
+  async total(
+    familyGroupId: string,
+    viewer?: InsuranceViewer,
+  ): Promise<bigint> {
+    const positions = await this.positions(familyGroupId, viewer);
     return positions.reduce((sum, p) => sum + (p.valueIdr ?? 0n), 0n);
   }
 
