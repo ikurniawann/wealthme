@@ -1476,6 +1476,9 @@ model AssetHistory {
   // createdAt, id). effectiveDate is the calendar date in `timeZone`
   // (Asia/Jakarta when null). Date-only rows (hasTime = false) store
   // effectiveAt at 00:00 UTC of effectiveDate; no clock time is invented.
+  // No default on purpose (new code must set it). A DB trigger
+  // (asset_history_fill_effective, migration 20261020010000) fills both from
+  // recordedAt only for older API images that omit them (rollback safety).
   effectiveAt        DateTime
   effectiveDate      DateTime            @db.Date
   hasTime            Boolean             @default(true)
@@ -1547,9 +1550,10 @@ model AssetTransaction {
   updatedAt         DateTime             @updatedAt
   voidedAt          DateTime?
   voidReason        String?              @db.VarChar(500)
-  // Cascade is safe only because an asset with history is archived, never
-  // hard-deleted (A5).
-  asset             Asset                @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  // NoAction: an asset with ledger rows can never be hard-deleted (A5
+  // archive). Not Restrict: Restrict is checked immediately per row and
+  // would block a family-group delete, whose cascade removes both sides.
+  asset             Asset                @relation(fields: [assetId], references: [id], onDelete: NoAction)
   familyGroup       FamilyGroup          @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
   cashAccount       Account?             @relation("AssetCashAccount", fields: [cashAccountId], references: [id], onDelete: SetNull)
   cashTransaction   Transaction?         @relation(fields: [cashTransactionId], references: [id], onDelete: SetNull)

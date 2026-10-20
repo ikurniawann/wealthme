@@ -111,6 +111,40 @@ ALTER TABLE "asset_history"
   ALTER COLUMN "source" SET NOT NULL,
   ALTER COLUMN "source" SET DEFAULT 'manual';
 
+-- Rollback/upgrade safety: the previous API image (still serving during the
+-- compose `migrate` step, and again after an image-retag rollback) inserts
+-- asset_history rows WITHOUT effectiveAt/effectiveDate. Fill them from
+-- recordedAt with the same rule as the backfill above, instead of failing
+-- the NOT NULL. New code always sets them, so this only fires for old code.
+CREATE OR REPLACE FUNCTION "asset_history_fill_effective"() RETURNS trigger AS $$
+BEGIN
+  IF NEW."recordedAt" IS NULL THEN
+    NEW."recordedAt" := CURRENT_TIMESTAMP;
+  END IF;
+  IF NEW."effectiveAt" IS NULL THEN
+    NEW."effectiveAt" := NEW."recordedAt";
+    NEW."hasTime" := NEW."recordedAt" <> date_trunc('day', NEW."recordedAt");
+  END IF;
+  IF NEW."effectiveDate" IS NULL THEN
+    NEW."effectiveDate" := ((NEW."effectiveAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta')::date;
+  END IF;
+  IF NEW."kind" IS NULL THEN
+    NEW."kind" := 'valuation';
+  END IF;
+  IF NEW."source" IS NULL THEN
+    NEW."source" := 'manual';
+  END IF;
+  IF NEW."createdAt" IS NULL THEN
+    NEW."createdAt" := CURRENT_TIMESTAMP;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER "asset_history_fill_effective"
+  BEFORE INSERT ON "asset_history"
+  FOR EACH ROW EXECUTE FUNCTION "asset_history_fill_effective"();
+
 -- CreateTable
 CREATE TABLE "asset_transactions" (
     "id" TEXT NOT NULL,
@@ -193,7 +227,11 @@ ALTER TABLE "assets" ADD CONSTRAINT "assets_ownerUserId_fkey" FOREIGN KEY ("owne
 ALTER TABLE "asset_history" ADD CONSTRAINT "asset_history_assetTransactionId_fkey" FOREIGN KEY ("assetTransactionId") REFERENCES "asset_transactions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "asset_transactions" ADD CONSTRAINT "asset_transactions_assetId_fkey" FOREIGN KEY ("assetId") REFERENCES "assets"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- NO ACTION (not CASCADE): an asset with ledger rows can never be hard-
+-- deleted (A5 archive). Not RESTRICT either: RESTRICT is checked per row
+-- immediately and would block deleting a whole family group, whose cascade
+-- removes the asset and its transactions in the same statement.
+ALTER TABLE "asset_transactions" ADD CONSTRAINT "asset_transactions_assetId_fkey" FOREIGN KEY ("assetId") REFERENCES "assets"("id") ON DELETE NO ACTION ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "asset_transactions" ADD CONSTRAINT "asset_transactions_familyGroupId_fkey" FOREIGN KEY ("familyGroupId") REFERENCES "family_groups"("id") ON DELETE CASCADE ON UPDATE CASCADE;
