@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 
+import { COUNTED_ASSET_WHERE } from "../assets/asset-access";
 import {
   accountPrivacyWhere,
   canSeePrivateItems,
@@ -275,7 +276,8 @@ export class AiAdvisorService {
       // schema has none), so these stay family-wide — matching what the
       // /aset and /liabilitas pages already show every non-row-scoped role.
       this.prisma.asset.aggregate({
-        where: { familyGroupId },
+        // Aset A3/A5 — active, unlinked rows only (dashboard parity).
+        where: { familyGroupId, ...COUNTED_ASSET_WHERE },
         _sum: { currentValue: true },
       }),
       this.prisma.liability.aggregate({
@@ -310,7 +312,7 @@ export class AiAdvisorService {
         },
       }),
       this.prisma.asset.findMany({
-        where: { familyGroupId },
+        where: { familyGroupId, ...COUNTED_ASSET_WHERE },
         orderBy: { currentValue: "desc" },
         take: MAX_CONTEXT_ROWS + 1,
         select: { name: true, type: true, currentValue: true },

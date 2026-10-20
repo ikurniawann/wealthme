@@ -1,13 +1,37 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { type Decimal } from "@prisma/client/runtime/library";
 
+import { isRowScoped } from "../common/utils/privacy.util";
+import { runSerializableWithRetry } from "../common/utils/serializable-retry.util";
+import {
+  dbDateToYmd,
+  jakartaTodayYmd,
+  ymdToDbDate,
+} from "../investments/ledger/ledger-dates";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
+import { viewerAssetWhere } from "./asset-access";
+import {
+  historyEffectiveFields,
+  nowEffectiveFields,
+} from "./history-effective.util";
+import {
+  loadState,
+  lockAsset,
+  timelineOf,
+  userNames,
+} from "./ledger/asset-ledger-support";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { AssetValuationsService } from "./ledger/asset-valuations.service";
+
+import type { AssetViewer } from "./asset-access";
 import type {
   AssetHistoryResponseDto,
   AssetResponseDto,
@@ -15,8 +39,10 @@ import type {
 import type { CreateAssetDto } from "./dto/create-asset.dto";
 import type { RecordAssetValueDto } from "./dto/record-asset-value.dto";
 import type { UpdateAssetDto } from "./dto/update-asset.dto";
+import type { AssetValuationModel } from "@prisma/client";
 
 const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
+
 const MIN_RATE_PCT = -100;
 const MAX_RATE_PCT = 100;
 
@@ -163,13 +189,56 @@ function toHistoryDto(
   };
 }
 
+/** Aset Task 18 — identity fields editable on the asset (not quantity). */
+function identityFields(dto: {
+  unit?: string | null;
+  valuationModel?: AssetValuationModel;
+  internalCode?: string | null;
+  custodian?: string | null;
+}): {
+  unit?: string | null;
+  valuationModel?: AssetValuationModel;
+  internalCode?: string | null;
+  custodian?: string | null;
+} {
+  const clean = (v: string | null | undefined) =>
+    v === undefined ? undefined : v?.trim() || null;
+  return {
+    unit: clean(dto.unit),
+    valuationModel: dto.valuationModel,
+    internalCode: clean(dto.internalCode),
+    custodian: clean(dto.custodian),
+  };
+}
+
+/** internalCode is unique per family: a clash is a 409, never a 500. */
+async function uniqueCode<T>(write: Promise<T>): Promise<T> {
+  try {
+    return await write;
+  } catch (err) {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    ) {
+      throw new ConflictException("Kode internal aset ini sudah dipakai");
+    }
+    throw err;
+  }
+}
+
 @Injectable()
 export class AssetsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly valuations: AssetValuationsService,
+  ) {}
 
-  async findAll(familyGroupId: string): Promise<AssetResponseDto[]> {
+  async findAll(
+    familyGroupId: string,
+    viewer?: AssetViewer,
+  ): Promise<AssetResponseDto[]> {
     const assets = await this.prisma.asset.findMany({
-      where: { familyGroupId },
+      where: { familyGroupId, ...viewerAssetWhere(viewer) },
       orderBy: { createdAt: "asc" },
     });
     return assets.map(toAssetDto);
@@ -178,6 +247,7 @@ export class AssetsService {
   async create(
     familyGroupId: string,
     dto: CreateAssetDto,
+    viewer?: AssetViewer,
   ): Promise<AssetResponseDto> {
     if (!/^\d+$/.test(dto.currentValue)) {
       throw new BadRequestException(
@@ -192,31 +262,51 @@ export class AssetsService {
       dto.categoryId,
     );
 
-    const asset = await this.prisma.asset.create({
-      data: {
-        familyGroupId,
-        name: dto.name,
-        type: dto.type,
-        currentValue: BigInt(dto.currentValue),
-        currency: dto.currency ?? "IDR",
-        notes: dto.notes ?? null,
-        valueChangeRatePct: dto.valueChangeRatePct ?? null,
-        valueChangeMode: dto.valueChangeMode ?? "percent",
-        valueChangeAmount:
-          dto.valueChangeAmount != null ? BigInt(dto.valueChangeAmount) : null,
-        categoryId: categoryId ?? null,
-        acquisitionDate: dto.acquisitionDate
-          ? new Date(dto.acquisitionDate)
-          : null,
-      },
-    });
-
-    await this.prisma.assetHistory.create({
-      data: {
-        assetId: asset.id,
-        value: asset.currentValue,
-      },
-    });
+    // The opening value and its history row commit together. The row is
+    // date-only on the Jakarta calendar day (controller ruling): a valuation
+    // entered for today — dated or timed — then sorts after it and becomes
+    // current.
+    const today = ymdToDbDate(jakartaTodayYmd());
+    const asset = await uniqueCode(
+      this.prisma.$transaction(async (tx) => {
+        const created = await tx.asset.create({
+          data: {
+            ...identityFields(dto),
+            familyGroupId,
+            // A7 — a row-scoped member owns what she records, or she could
+            // not see it afterwards.
+            ownerUserId:
+              viewer && isRowScoped(viewer.member) ? viewer.userId : null,
+            name: dto.name,
+            type: dto.type,
+            currentValue: BigInt(dto.currentValue),
+            currency: dto.currency ?? "IDR",
+            notes: dto.notes ?? null,
+            valueChangeRatePct: dto.valueChangeRatePct ?? null,
+            valueChangeMode: dto.valueChangeMode ?? "percent",
+            valueChangeAmount:
+              dto.valueChangeAmount != null
+                ? BigInt(dto.valueChangeAmount)
+                : null,
+            categoryId: categoryId ?? null,
+            acquisitionDate: dto.acquisitionDate
+              ? new Date(dto.acquisitionDate)
+              : null,
+          },
+        });
+        await tx.assetHistory.create({
+          data: {
+            assetId: created.id,
+            value: created.currentValue,
+            kind: "opening",
+            effectiveAt: today,
+            effectiveDate: today,
+            hasTime: false,
+          },
+        });
+        return created;
+      }),
+    );
 
     return toAssetDto(asset);
   }
@@ -225,9 +315,10 @@ export class AssetsService {
     familyGroupId: string,
     id: string,
     dto: UpdateAssetDto,
+    viewer?: AssetViewer,
   ): Promise<AssetResponseDto> {
     const existing = await this.prisma.asset.findUnique({
-      where: { id, familyGroupId },
+      where: { id, familyGroupId, AND: [viewerAssetWhere(viewer)] },
     });
     if (!existing) {
       throw new NotFoundException("Asset not found");
@@ -250,41 +341,83 @@ export class AssetsService {
         ? await this.resolveCategoryId(familyGroupId, dto.categoryId)
         : existing.categoryId;
 
-    const updated = await this.prisma.asset.update({
-      where: { id, familyGroupId },
-      data: {
-        name: dto.name ?? existing.name,
-        type: dto.type ?? existing.type,
-        currentValue: newValue,
-        currency: dto.currency ?? existing.currency,
-        notes: dto.notes !== undefined ? (dto.notes ?? null) : existing.notes,
-        valueChangeRatePct:
-          dto.valueChangeRatePct !== undefined
-            ? dto.valueChangeRatePct
-            : existing.valueChangeRatePct,
-        valueChangeMode: dto.valueChangeMode ?? existing.valueChangeMode,
-        valueChangeAmount:
-          dto.valueChangeAmount !== undefined
-            ? dto.valueChangeAmount != null
-              ? BigInt(dto.valueChangeAmount)
-              : null
-            : existing.valueChangeAmount,
-        categoryId: categoryId ?? null,
-        acquisitionDate:
-          dto.acquisitionDate !== undefined
-            ? dto.acquisitionDate
-              ? new Date(dto.acquisitionDate)
-              : null
-            : existing.acquisitionDate,
-      },
-    });
+    const data = {
+      ...identityFields(dto),
+      name: dto.name ?? existing.name,
+      type: dto.type ?? existing.type,
+      currency: dto.currency ?? existing.currency,
+      notes: dto.notes !== undefined ? (dto.notes ?? null) : existing.notes,
+      valueChangeRatePct:
+        dto.valueChangeRatePct !== undefined
+          ? dto.valueChangeRatePct
+          : existing.valueChangeRatePct,
+      valueChangeMode: dto.valueChangeMode ?? existing.valueChangeMode,
+      valueChangeAmount:
+        dto.valueChangeAmount !== undefined
+          ? dto.valueChangeAmount != null
+            ? BigInt(dto.valueChangeAmount)
+            : null
+          : existing.valueChangeAmount,
+      categoryId: categoryId ?? null,
+      acquisitionDate:
+        dto.acquisitionDate !== undefined
+          ? dto.acquisitionDate
+            ? new Date(dto.acquisitionDate)
+            : null
+          : existing.acquisitionDate,
+    };
 
-    if (dto.currentValue != null && newValue !== existing.currentValue) {
-      await this.prisma.assetHistory.create({
-        data: { assetId: id, value: newValue },
-      });
+    if (dto.currentValue == null || newValue === existing.currentValue) {
+      const updated = await uniqueCode(
+        this.prisma.asset.update({ where: { id, familyGroupId }, data }),
+      );
+      return toAssetDto(updated);
     }
 
+    // A new value is a valuation: same path as Update Nilai (lock, linked /
+    // archived guards, effective order, rebuild, audit). Never cash or cost.
+    const updated = await uniqueCode(
+      runSerializableWithRetry(this.prisma, async (tx) => {
+        const asset = await lockAsset(tx, familyGroupId, id, viewer, "write");
+        const withInfo = await tx.asset.update({
+          where: { id, familyGroupId },
+          data,
+        });
+        const effective = nowEffectiveFields();
+        const row = await this.valuations.insert(
+          tx,
+          withInfo,
+          {
+            ...effective,
+            effectiveYmd: dbDateToYmd(effective.effectiveDate),
+            timeZone: null,
+            pricePerUnit: null,
+            amount: new Prisma.Decimal(newValue.toString()),
+            currency: "IDR",
+            fxRate: null,
+            source: "manual",
+            reference: null,
+            note: null,
+          },
+          viewer?.userId ?? null,
+          null,
+        );
+        if (viewer?.userId) {
+          await tx.auditLog.create({
+            data: {
+              userId: viewer.userId,
+              familyGroupId,
+              entity: "asset_valuation",
+              entityId: row.id,
+              action: "create",
+              before: { currentValue: asset.currentValue.toString() },
+              after: { value: newValue.toString(), via: "PATCH /assets" },
+            },
+          });
+        }
+        return tx.asset.findUniqueOrThrow({ where: { id } });
+      }),
+    );
     return toAssetDto(updated);
   }
 
@@ -357,46 +490,110 @@ export class AssetsService {
     return category.id;
   }
 
-  async remove(familyGroupId: string, id: string): Promise<void> {
+  /**
+   * A5 — delete becomes archive. A hard delete only removes an asset with
+   * nothing the user recorded: no transactions, no documents, and at most the
+   * system opening row create() wrote. Anything else is archived (kept,
+   * excluded from totals, audited) so its history survives.
+   */
+  async remove(
+    familyGroupId: string,
+    id: string,
+    viewer?: AssetViewer,
+  ): Promise<void> {
     const existing = await this.prisma.asset.findUnique({
-      where: { id, familyGroupId },
+      where: { id, familyGroupId, AND: [viewerAssetWhere(viewer)] },
     });
     if (!existing) {
       throw new NotFoundException("Asset not found");
     }
-    await this.prisma.asset.delete({ where: { id, familyGroupId } });
+    const [txCount, attachments, history] = await Promise.all([
+      this.prisma.assetTransaction.count({ where: { assetId: id } }),
+      this.prisma.assetAttachment.count({ where: { assetId: id } }),
+      this.prisma.assetHistory.findMany({
+        where: { assetId: id },
+        select: { kind: true, recordedByUserId: true, note: true },
+      }),
+    ]);
+    const onlySystemOpening =
+      history.length === 0 ||
+      (history.length === 1 &&
+        history[0]!.kind === "opening" &&
+        !history[0]!.recordedByUserId &&
+        !history[0]!.note);
+    if (txCount > 0 || attachments > 0 || !onlySystemOpening) {
+      if (existing.status === "archived") return;
+      await this.prisma.$transaction(async (tx) => {
+        await tx.asset.update({
+          where: { id, familyGroupId },
+          data: { status: "archived" },
+        });
+        if (viewer?.userId) {
+          await tx.auditLog.create({
+            data: {
+              userId: viewer.userId,
+              familyGroupId,
+              entity: "Asset",
+              entityId: id,
+              action: "archive",
+              before: { status: existing.status },
+              after: { status: "archived" },
+            },
+          });
+        }
+      });
+      return;
+    }
+    try {
+      await this.prisma.asset.delete({ where: { id, familyGroupId } });
+    } catch (err) {
+      // asset_transactions.assetId is NO ACTION: an asset with ledger rows
+      // can never be hard-deleted (a concurrent write). Never a 500.
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === "P2003"
+      ) {
+        throw new ConflictException(
+          "Aset ini memiliki riwayat transaksi dan tidak dapat dihapus. Arsipkan aset ini.",
+        );
+      }
+      throw err;
+    }
   }
 
+  /**
+   * Legacy value list (oldest first) in the A4 effective order — never by
+   * recordedAt — active rows only; change vs the previous row.
+   */
   async findHistory(
     familyGroupId: string,
     id: string,
+    viewer?: AssetViewer,
   ): Promise<AssetHistoryResponseDto[]> {
     const asset = await this.prisma.asset.findUnique({
-      where: { id, familyGroupId },
+      where: { id, familyGroupId, AND: [viewerAssetWhere(viewer)] },
     });
     if (!asset) {
       throw new NotFoundException("Asset not found");
     }
 
     const history = await this.prisma.assetHistory.findMany({
-      where: { assetId: id },
-      orderBy: { recordedAt: "asc" },
+      where: { assetId: id, status: "active" },
+      orderBy: [
+        { effectiveDate: "asc" },
+        { hasTime: "asc" },
+        { effectiveAt: "asc" },
+        { createdAt: "asc" },
+        { id: "asc" },
+      ],
     });
-    const userIds = [
-      ...new Set(
-        history.map((h) => h.recordedByUserId).filter((v): v is string => !!v),
-      ),
-    ];
-    const users = userIds.length
-      ? await this.prisma.user.findMany({
-          where: { id: { in: userIds } },
-          select: { id: true, name: true },
-        })
-      : [];
-    const nameById = new Map(users.map((u) => [u.id, u.name]));
+    const nameById = await userNames(
+      this.prisma,
+      history.map((h) => h.recordedByUserId),
+    );
     return history.map((h, i) =>
       toHistoryDto(
-        h,
+        { ...h, recordedAt: h.effectiveAt },
         i > 0 ? (history[i - 1]?.value ?? null) : null,
         h.recordedByUserId ? (nameById.get(h.recordedByUserId) ?? null) : null,
       ),
@@ -404,22 +601,19 @@ export class AssetsService {
   }
 
   /**
-   * EPIC-033 group 3 (p17) — a member-entered valuation. Appends a history
-   * row (dated, attributed, optionally annotated) and moves the asset's
-   * `currentValue` to it when the entry is the newest one.
+   * EPIC-033 group 3 (p17) — a member-entered valuation (legacy body: total
+   * value or % on the current value). Written through the Task 18
+   * valuation path: effective order (a backdated entry never overrides a
+   * newer one), recomputed asset, never touches cash or cost. A UTC-midnight
+   * `recordedAt` is a date-only entry.
    */
   async recordValue(
     familyGroupId: string,
     id: string,
     dto: RecordAssetValueDto,
     actingUserId: string | null,
+    viewer?: AssetViewer,
   ): Promise<AssetHistoryResponseDto> {
-    const asset = await this.prisma.asset.findUnique({
-      where: { id, familyGroupId },
-    });
-    if (!asset) {
-      throw new NotFoundException("Asset not found");
-    }
     if ((dto.value == null) === (dto.changePercent == null)) {
       throw new BadRequestException(
         "Provide exactly one of value or changePercent",
@@ -429,60 +623,60 @@ export class AssetsService {
     if (recordedAt.getTime() > Date.now() + 60_000) {
       throw new BadRequestException("recordedAt cannot be in the future");
     }
-    let value: bigint;
-    if (dto.value != null) {
-      value = BigInt(dto.value);
-    } else {
-      // percent with 2 decimals → scale by 10_000 to stay in integers
-      const pctScaled = BigInt(
-        Math.round(Number.parseFloat(dto.changePercent!) * 100),
-      );
-      value =
-        asset.currentValue + (asset.currentValue * pctScaled) / BigInt(10_000);
-      if (value < BigInt(0)) {
-        throw new BadRequestException("Resulting value cannot be negative");
-      }
-    }
-
-    const latest = await this.prisma.assetHistory.findFirst({
-      where: { assetId: id },
-      orderBy: { recordedAt: "desc" },
-    });
-    const isNewest =
-      !latest || latest.recordedAt.getTime() <= recordedAt.getTime();
-    const previous = await this.prisma.assetHistory.findFirst({
-      where: { assetId: id, recordedAt: { lte: recordedAt } },
-      orderBy: { recordedAt: "desc" },
-    });
-
-    const [row] = await this.prisma.$transaction([
-      this.prisma.assetHistory.create({
-        data: {
-          assetId: id,
-          value,
-          recordedAt,
-          recordedByUserId: actingUserId,
-          note: dto.note ?? null,
-        },
-      }),
-      ...(isNewest
-        ? [
-            this.prisma.asset.update({
-              where: { id, familyGroupId },
-              data: { currentValue: value },
-            }),
-          ]
-        : []),
-    ]);
-
-    const name = actingUserId
-      ? ((
-          await this.prisma.user.findUnique({
-            where: { id: actingUserId },
-            select: { name: true },
-          })
-        )?.name ?? null)
-      : null;
-    return toHistoryDto(row, previous?.value ?? null, name);
+    const effective = dto.recordedAt
+      ? historyEffectiveFields(recordedAt)
+      : nowEffectiveFields(recordedAt);
+    const { row, previous } = await runSerializableWithRetry(
+      this.prisma,
+      async (tx) => {
+        const asset = await lockAsset(tx, familyGroupId, id, viewer, "write");
+        let value: bigint;
+        if (dto.value != null) {
+          value = BigInt(dto.value);
+        } else {
+          // percent with 2 decimals → scale by 10_000 to stay in integers
+          const pctScaled = BigInt(
+            Math.round(Number.parseFloat(dto.changePercent!) * 100),
+          );
+          value =
+            asset.currentValue +
+            (asset.currentValue * pctScaled) / BigInt(10_000);
+          if (value < BigInt(0)) {
+            throw new BadRequestException("Resulting value cannot be negative");
+          }
+        }
+        const written = await this.valuations.insert(
+          tx,
+          asset,
+          {
+            ...effective,
+            effectiveYmd: dbDateToYmd(effective.effectiveDate),
+            timeZone: null,
+            pricePerUnit: null,
+            amount: new Prisma.Decimal(value.toString()),
+            currency: "IDR",
+            fxRate: null,
+            source: "manual",
+            reference: null,
+            note: dto.note ?? null,
+          },
+          actingUserId,
+          null,
+        );
+        const t = timelineOf(asset, await loadState(tx, asset.id));
+        const idx = t.ordered.findIndex((r) => r.id === written.id);
+        const prevRow = idx > 0 ? t.ordered[idx - 1] : undefined;
+        return {
+          row: written,
+          previous: prevRow ? (t.states.get(prevRow.id)?.value ?? null) : null,
+        };
+      },
+    );
+    const names = await userNames(this.prisma, [actingUserId]);
+    return toHistoryDto(
+      { ...row, recordedAt: row.effectiveAt },
+      previous,
+      actingUserId ? (names.get(actingUserId) ?? null) : null,
+    );
   }
 }

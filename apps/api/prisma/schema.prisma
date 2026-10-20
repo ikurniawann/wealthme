@@ -135,6 +135,38 @@ enum AssetType {
   emas
 }
 
+// Aset rebuild — independent enums; existing enum values are unchanged.
+enum AssetStatus {
+  active
+  sold
+  archived
+}
+
+enum AssetValuationModel {
+  per_unit
+  total
+}
+
+enum AssetHistoryKind {
+  opening
+  valuation
+  correction
+  buy
+  sell
+  quantity_change
+}
+
+enum AssetTransactionKind {
+  opening
+  buy
+  sell
+}
+
+enum AssetEventStatus {
+  active
+  void
+}
+
 // EPIC-024 D2/US-ASSET-6: which linear projection Asset.valueChangeRatePct
 // (percent) or Asset.valueChangeAmount (fixed) computeEstimatedValue applies.
 enum AssetValueChangeMode {
@@ -512,6 +544,7 @@ model User {
   notifications            Notification[]
   notificationReads        NotificationRead[]
   fxConversionsCreated     FxConversion[]     @relation("FxConversionCreatedBy")
+  ownedAssets              Asset[]            @relation("AssetOwner")
   ownedPlatformAccounts    PlatformAccount[]  @relation("PlatformAccountOwner")
   ownedInvestments         Investment[]       @relation("InvestmentOwner")
 
@@ -665,6 +698,7 @@ model FamilyGroup {
   transactionAttachments  TransactionAttachment[]
   platformAccounts        PlatformAccount[]
   investmentTransactions  InvestmentTransaction[]
+  assetTransactions       AssetTransaction[]
   investmentAttachments   InvestmentAttachment[]
   goalContributions       GoalContribution[]
   fxConversions           FxConversion[]
@@ -886,6 +920,7 @@ model Account {
   // request. Explicit relation names to disambiguate the two FKs.
   allowanceRequestsAsTarget AllowanceRequest[]          @relation("AllowanceRequestTarget")
   allowanceRequestsAsSource AllowanceRequest[]          @relation("AllowanceRequestSource")
+  assetCashLegs             AssetTransaction[]          @relation("AssetCashAccount")
   goalsAsSource             Goal[]
   goalContributions         GoalContribution[]
   taxFinalIncomeEntries     TaxFinalIncomeEntry[]
@@ -1078,6 +1113,7 @@ model Transaction {
   // The investment ledger row this cash movement settles (buy debit, sell
   // proceeds, dividend credit).
   investmentLegs        InvestmentTransaction[]
+  assetLegs             AssetTransaction[]
 
   @@unique([familyGroupId, idempotencyKey])
   @@index([familyGroupId, occurredAt])
@@ -1341,6 +1377,34 @@ model Asset {
   currentValue       BigInt
   currency           String               @default("IDR")
   notes              String?
+  // Aset A3 — permanent link to the Investasi holding this record describes
+  // (e.g. emas held at Pegadaian). A linked asset is a VIEW of that holding:
+  // it is excluded from every asset total (the holding is valued once, by
+  // the Investasi valuation service). Never auto-linked by name; null for
+  // every legacy row.
+  investmentId       String?              @unique
+  // Aset A7 — owner for row-scoped roles; null = family-level (legacy rows).
+  ownerUserId        String?
+  // Aset A5 — remaining quantity in `unit` (gram, unit, m², …). Null when
+  // unknown: nothing is guessed from currentValue for legacy rows.
+  quantity           Decimal?             @db.Decimal(24, 8)
+  unit               String?              @db.VarChar(64)
+  // per_unit = quantity × price per unit; total = one value for the whole
+  // asset (property, vehicle). Legacy rows are `total`.
+  valuationModel     AssetValuationModel  @default(total)
+  // Weighted-average cost per unit in IDR (same method as Investasi R1),
+  // replayed from AssetTransaction. Null = cost unknown (legacy).
+  costBasisPerUnit   Decimal?             @db.Decimal(24, 8)
+  // Internal code for assets without an exchange ticker (unique per family).
+  internalCode       String?              @db.VarChar(64)
+  // Where the asset is kept / who holds it (bank safe deposit, Pegadaian, …).
+  custodian          String?              @db.VarChar(200)
+  // Delete becomes archive; sold/archived rows are excluded from totals.
+  status             AssetStatus          @default(active)
+  soldAt             DateTime?
+  investment         Investment?          @relation(fields: [investmentId], references: [id], onDelete: SetNull)
+  owner              User?                @relation("AssetOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  transactions       AssetTransaction[]
   // EPIC-021 #17/#18 (Open Design Decision #8): ONE signed annual
   // value-change rate per asset — negative = depreciation, positive =
   // appreciation. Compute-on-read (see AssetsService); a snapshot still
@@ -1376,8 +1440,11 @@ model Asset {
   history            AssetHistory[]
   attachments        AssetAttachment[]
 
+  @@unique([familyGroupId, internalCode])
   @@index([familyGroupId])
   @@index([categoryId])
+  @@index([familyGroupId, status])
+  @@index([ownerUserId])
   @@map("assets")
 }
 
@@ -1398,18 +1465,109 @@ model AssetAttachment {
 }
 
 model AssetHistory {
-  id               String   @id @default(uuid())
-  assetId          String
-  value            BigInt
-  recordedAt       DateTime @default(now())
+  id                 String              @id @default(uuid())
+  assetId            String
+  value              BigInt
+  // Legacy column: kept and still written. New code orders by the
+  // effective fields below, never by recordedAt.
+  recordedAt         DateTime            @default(now())
+  // Aset A4 — when the value applies, separate from when it was recorded
+  // (createdAt). Order: (effectiveDate, hasTime false first, effectiveAt,
+  // createdAt, id). effectiveDate is the calendar date in `timeZone`
+  // (Asia/Jakarta when null). Date-only rows (hasTime = false) store
+  // effectiveAt at 00:00 UTC of effectiveDate; no clock time is invented.
+  // No default on purpose (new code must set it). A DB trigger
+  // (asset_history_fill_effective, migration 20261020010000) fills both from
+  // recordedAt only for older API images that omit them (rollback safety).
+  effectiveAt        DateTime
+  effectiveDate      DateTime            @db.Date
+  hasTime            Boolean             @default(true)
+  timeZone           String?             @db.VarChar(64)
+  kind               AssetHistoryKind    @default(valuation)
+  // Who/what supplied the value ("manual", "appraisal", "legacy", …).
+  source             String              @default("manual") @db.VarChar(100)
+  reference          String?             @db.VarChar(500)
+  // Insert time. Legacy rows carry recordedAt (their only timestamp).
+  createdAt          DateTime            @default(now())
+  status             AssetEventStatus    @default(active)
+  voidedAt           DateTime?
+  voidReason         String?             @db.VarChar(500)
+  valuationModel     AssetValuationModel @default(total)
+  pricePerUnit       Decimal?            @db.Decimal(24, 8)
+  currency           String              @default("IDR") @db.VarChar(10)
+  fxRateDate         DateTime?           @db.Date
+  fxSource           String?             @db.VarChar(100)
+  fxRate             Decimal?            @db.Decimal(24, 8)
+  unit               String?             @db.VarChar(64)
+  quantityBefore     Decimal?            @db.Decimal(24, 8)
+  quantityAfter      Decimal?            @db.Decimal(24, 8)
+  valueBefore        BigInt?
+  assetTransactionId String?             @unique
+  assetTransaction   AssetTransaction?   @relation(fields: [assetTransactionId], references: [id], onDelete: SetNull)
   // EPIC-033 group 3 — who entered this value (null for system writes) and
   // an optional note ("harga taksiran notaris", etc.).
-  recordedByUserId String?
-  note             String?
-  asset            Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  recordedByUserId   String?
+  note               String?
+  // Task 18 — one uuid per Update Nilai form open (R7): a retry with the
+  // same key and payload returns the original row; a different payload 409s.
+  idempotencyKey     String?             @db.VarChar(64)
+  asset              Asset               @relation(fields: [assetId], references: [id], onDelete: Cascade)
 
+  @@unique([assetId, idempotencyKey])
   @@index([assetId, recordedAt])
+  @@index([assetId, effectiveDate, hasTime, effectiveAt, createdAt, id])
   @@map("asset_history")
+}
+
+// Aset A5 — buy / sell / opening of a physical asset. Same rules as the
+// Investasi ledger: weighted-average cost (R1), ordering (effectiveDate,
+// effectiveTime NULLS FIRST, createdAt, id) (R6), per-family idempotency key
+// (R7). Cash legs are ordinary Transaction rows on `cashAccountId`; an
+// opening never moves cash. Amounts are in `currency`; fxRate = IDR per 1
+// unit of `currency` (null for IDR).
+model AssetTransaction {
+  id                String               @id @default(uuid())
+  assetId           String
+  familyGroupId     String
+  kind              AssetTransactionKind
+  status            AssetEventStatus     @default(active)
+  quantity          Decimal              @db.Decimal(24, 8)
+  pricePerUnit      Decimal?             @db.Decimal(24, 8)
+  grossAmount       Decimal?             @db.Decimal(24, 8)
+  fee               Decimal              @default(0) @db.Decimal(24, 8)
+  tax               Decimal              @default(0) @db.Decimal(24, 8)
+  netAmount         Decimal?             @db.Decimal(24, 8)
+  currency          String               @default("IDR") @db.VarChar(10)
+  fxRate            Decimal?             @db.Decimal(24, 8)
+  costBasisKnown    Boolean              @default(true)
+  realizedPnl       Decimal?             @db.Decimal(24, 8)
+  effectiveDate     DateTime             @db.Date
+  // "HH:MM" (24h) only when known; null = date-only (start of day).
+  effectiveTime     String?              @db.VarChar(5)
+  timeZone          String?              @db.VarChar(64)
+  cashAccountId     String?
+  cashTransactionId String?              @unique
+  idempotencyKey    String               @db.VarChar(64)
+  note              String?              @db.VarChar(1000)
+  createdByUserId   String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  voidedAt          DateTime?
+  voidReason        String?              @db.VarChar(500)
+  // NoAction: an asset with ledger rows can never be hard-deleted (A5
+  // archive). Not Restrict: Restrict is checked immediately per row and
+  // would block a family-group delete, whose cascade removes both sides.
+  asset             Asset                @relation(fields: [assetId], references: [id], onDelete: NoAction)
+  familyGroup       FamilyGroup          @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  cashAccount       Account?             @relation("AssetCashAccount", fields: [cashAccountId], references: [id], onDelete: SetNull)
+  cashTransaction   Transaction?         @relation(fields: [cashTransactionId], references: [id], onDelete: SetNull)
+  history           AssetHistory?
+
+  @@unique([familyGroupId, idempotencyKey])
+  @@index([assetId, effectiveDate, effectiveTime, createdAt, id])
+  @@index([familyGroupId])
+  @@index([cashAccountId])
+  @@map("asset_transactions")
 }
 
 model NetWorthSnapshot {
@@ -1494,6 +1652,7 @@ model Investment {
   // generic "edit" that used to silently overwrite quantity/costBasisPerUnit
   // with no trace of what changed or any realized P/L.
   transactions          InvestmentTransaction[]
+  linkedAsset           Asset?
   attachments           InvestmentAttachment[]
   taxFinalIncomeEntries TaxFinalIncomeEntry[]
 

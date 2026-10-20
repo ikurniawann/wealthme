@@ -1,5 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { AssetType, AssetValueChangeMode } from "@prisma/client";
+import {
+  AssetType,
+  AssetValuationModel,
+  AssetValueChangeMode,
+} from "@prisma/client";
 import {
   IsDateString,
   IsEnum,
@@ -90,6 +94,31 @@ export class CreateAssetDto {
   @IsOptional()
   @IsDateString()
   acquisitionDate?: string;
+
+  // Aset Task 18 — identity fields used by Update Nilai / Edit informasi.
+  // Quantity is owned by the transaction ledger and is not editable here.
+  @ApiPropertyOptional({ example: "gram", nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  unit?: string | null;
+
+  @ApiPropertyOptional({ enum: AssetValuationModel })
+  @IsOptional()
+  @IsEnum(AssetValuationModel)
+  valuationModel?: AssetValuationModel;
+
+  @ApiPropertyOptional({ example: "EMAS-01", nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  internalCode?: string | null;
+
+  @ApiPropertyOptional({ example: "Safe deposit box BCA", nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  custodian?: string | null;
 
   @FxInputsProperty()
   fxInputs?: FxInputDto[];
