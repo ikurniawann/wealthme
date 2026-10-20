@@ -196,6 +196,113 @@ export class InsurancePaymentsService {
   }
 
   /**
+   * Task 25 — "Batalkan pembayaran". Voids ONE premium payment: refunds the
+   * source account, deletes the linked expense transaction (the payment row
+   * goes with it — FK cascade) and reverts the schedule, all in one
+   * Serializable transaction with retry, plus an audit row.
+   *
+   * Schedule revert: the voided due is unpaid again. When the current next
+   * due lies after it (or the schedule had ended / is empty), the voided due
+   * becomes the next due; when the next due is already on or before it
+   * (an older, still unpaid due), nothing moves. The legacy `renewalDate`
+   * mirrors `nextPremiumDueDate`. A legacy payment without a due date
+   * refunds and deletes but leaves the schedule untouched.
+   */
+  async voidPayment(
+    familyGroupId: string,
+    insuranceId: string,
+    paymentId: string,
+    actorUserId: string | null,
+    reason: string | null,
+  ): Promise<InsurancePayResponseDto> {
+    const voided = await runSerializableWithRetry(this.prisma, (tx) =>
+      this.runVoid(
+        tx,
+        familyGroupId,
+        insuranceId,
+        paymentId,
+        actorUserId,
+        reason,
+      ),
+    );
+    return this.respond(familyGroupId, insuranceId, voided, false);
+  }
+
+  private async runVoid(
+    tx: TxClient,
+    familyGroupId: string,
+    insuranceId: string,
+    paymentId: string,
+    actorUserId: string | null,
+    reason: string | null,
+  ) {
+    const payment = await tx.insurancePayment.findFirst({
+      where: { id: paymentId, insuranceId, familyGroupId },
+    });
+    if (!payment) throw new NotFoundException("Pembayaran tidak ditemukan");
+    const insurance = await tx.insurance.findUniqueOrThrow({
+      where: { id: insuranceId, familyGroupId },
+    });
+
+    const transaction = payment.transactionId
+      ? await tx.transaction.findFirst({
+          where: { id: payment.transactionId, familyGroupId },
+        })
+      : null;
+    if (transaction?.accountId) {
+      // Reverse the expense debit. No overdraft floor: a refund is a credit.
+      await tx.account.update({
+        where: { id: transaction.accountId, familyGroupId },
+        data: { balance: { increment: transaction.amount } },
+      });
+    }
+    if (transaction) {
+      // Cascades the payment row (insurance_payments.transactionId FK).
+      await tx.transaction.delete({ where: { id: transaction.id } });
+    }
+    await tx.insurancePayment.deleteMany({ where: { id: payment.id } });
+
+    const before = insurance.nextPremiumDueDate;
+    const due = payment.dueDate;
+    const revertTo = due && (!before || before > due) ? due : null;
+    if (revertTo) {
+      await tx.insurance.update({
+        where: { id: insuranceId, familyGroupId },
+        data: { nextPremiumDueDate: revertTo, renewalDate: revertTo },
+      });
+    }
+
+    if (actorUserId) {
+      await tx.auditLog.create({
+        data: {
+          userId: actorUserId,
+          familyGroupId,
+          action: "void_payment",
+          entity: "InsurancePayment",
+          entityId: payment.id,
+          before: {
+            insuranceId,
+            dueDate: ymd(payment.dueDate),
+            paidAt: payment.paidAt.toISOString(),
+            amount: payment.amount.toString(),
+            currency: payment.currency,
+            accountId: payment.accountId,
+            transactionId: payment.transactionId,
+            nextPremiumDueDate: ymd(before),
+          },
+          after: {
+            refundedAccountId: transaction?.accountId ?? null,
+            refundedAmount: transaction ? transaction.amount.toString() : null,
+            nextPremiumDueDate: ymd(revertTo ?? before),
+            reason,
+          },
+        },
+      });
+    }
+    return payment;
+  }
+
+  /**
    * Fix round — an idempotent retry that sends `fxInputs` is compared on the
    * FOREIGN input recorded for the original payment (fx_conversions), not on
    * a re-conversion at today's rate: a genuine retry after the rate moved

@@ -5,6 +5,7 @@ import {
   IsString,
   IsUUID,
   Matches,
+  MaxLength,
 } from "class-validator";
 
 import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
@@ -70,4 +71,13 @@ export class PayInsuranceDto {
 
   @FxInputsProperty()
   fxInputs?: FxInputDto[];
+}
+
+/** Task 25 — "Batalkan pembayaran": optional reason kept in the audit row. */
+export class VoidInsurancePaymentDto {
+  @ApiPropertyOptional({ description: "Why the payment is voided (audit)" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
 }

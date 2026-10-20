@@ -49,7 +49,10 @@ import {
   ListInsurancesQueryDto,
 } from "./dto/list-insurances-query.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { PayInsuranceDto } from "./dto/pay-insurance.dto";
+import {
+  PayInsuranceDto,
+  VoidInsurancePaymentDto,
+} from "./dto/pay-insurance.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateInsuranceDto } from "./dto/update-insurance.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -294,6 +297,35 @@ export class InsurancesController {
   ): Promise<InsurancePaymentDto[]> {
     await this.visible(req, familyGroupId, id);
     return this.payments.listPayments(familyGroupId, id);
+  }
+
+  @Post(":id/payments/:paymentId/void")
+  @HttpCode(HttpStatus.OK)
+  @CheckAbility(canManage)
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "id", type: String })
+  @ApiParam({ name: "paymentId", type: String })
+  @ApiOperation({
+    summary:
+      "Void a premium payment: refunds the account, deletes its expense transaction and reverts the next premium due (one Serializable transaction, audited). Returns the policy and the voided payment.",
+  })
+  @ApiResponse({ status: 200, type: InsurancePayResponseDto })
+  @ApiResponse({ status: 404, description: "Payment not found" })
+  async voidPayment(
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("id") id: string,
+    @Param("paymentId") paymentId: string,
+    @Body() dto: VoidInsurancePaymentDto,
+    @Req() req: Request,
+  ): Promise<InsurancePayResponseDto> {
+    await this.visible(req, familyGroupId, id);
+    return this.payments.voidPayment(
+      familyGroupId,
+      id,
+      paymentId,
+      req.tenantContext?.userId ?? null,
+      dto.reason?.trim() || null,
+    );
   }
 
   // ── Funds & valuations (S5) ────────────────────────────────────────────
