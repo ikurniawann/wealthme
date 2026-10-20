@@ -1,0 +1,848 @@
+/*
+ * Add-investment drawer (.ivx-pos, a PanelContent side panel) and the
+ * buy/sell dialog (.ivx-trade, a DialogContent) — 2026-10-20 polish.
+ * Deliberately UNLAYERED: the shared `.dialog` / field rules live in
+ * `@layer components` and the popups carry Tailwind translate utilities;
+ * unlayered rules beat both. Same idiom as the Kas form (`.kwf`, dana.css)
+ * and the top-up dialog (pocket-transfer.css): forest `.wm-dark` header band,
+ * light body with a rounded lip, sticky footer, full-screen sheet on phones.
+ */
+
+/* ── Shell ─────────────────────────────────────────────── */
+.dialog.ivx {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  background: var(--wm-card, #fff);
+  color: var(--wm-ink);
+}
+.dialog.ivx.ivx-trade {
+  width: min(680px, calc(100% - 32px));
+  max-height: 94dvh;
+  border-radius: 26px;
+}
+.dialog.wm-panel.ivx-pos {
+  width: min(780px, 100vw);
+}
+
+.ivx .ivx-head {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 24px 30px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.ivx .ivx-head-ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: rgb(255 255 255 / 0.12);
+  color: #fff;
+}
+.ivx .ivx-head-ic svg {
+  width: 24px;
+  height: 24px;
+}
+.ivx .ivx-head-text {
+  flex: 1;
+  min-width: 0;
+}
+.ivx .ivx-title {
+  margin: 0;
+  padding: 0;
+  background: none;
+  color: #fff;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.ivx .ivx-sub {
+  margin: 4px 0 0;
+  color: var(--wm-muted);
+  font-size: 14px;
+  opacity: 1;
+}
+.ivx .ivx-x {
+  display: grid;
+  flex: none;
+  align-self: flex-start;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.12);
+  color: #fff;
+  cursor: pointer;
+}
+.ivx .ivx-x:hover {
+  background: rgb(255 255 255 / 0.2);
+}
+.ivx .ivx-x:focus-visible {
+  outline: 2px solid var(--wm-lime, #a9d84c);
+  outline-offset: 2px;
+}
+.ivx .ivx-x svg {
+  width: 20px;
+  height: 20px;
+}
+
+.ivx .ivx-form {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  /* the band's rounded lip: the body overlaps the header */
+  margin-top: -18px;
+  border-radius: 22px 22px 0 0;
+  background: var(--wm-card, #fff);
+}
+.ivx .ivx-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+  padding: 22px 24px 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.ivx .ivx-foot {
+  display: flex;
+  flex: none;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 14px 24px 18px;
+  border-top: 1px solid var(--wm-line);
+  background: var(--wm-card, #fff);
+}
+.ivx .ivx-cancel {
+  min-width: 120px;
+  min-height: 48px;
+  border-radius: 999px;
+}
+.ivx .ivx-save {
+  flex: 0 1 280px;
+  min-height: 48px;
+  border-radius: 999px;
+}
+
+/* ── Sections ──────────────────────────────────────────── */
+.ivx .ivx-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.ivx .ivx-sec-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+  color: var(--wm-ink);
+  font-size: 15px;
+  font-weight: 800;
+}
+.ivx .ivx-sec-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--wm-line);
+}
+.ivx .ivx-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--wm-lime-soft);
+  color: var(--wm-ink);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.ivx .ivx-strip[data-tone="warn"] {
+  background: var(--warning-soft);
+}
+.ivx .ivx-strip > svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+/* ── Type tiles + recording mode ───────────────────────── */
+.ivx .ivx-tiles {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+.ivx .ivx-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 80px;
+  padding: 10px 4px;
+  border: 1px solid var(--wm-line);
+  border-radius: 14px;
+  background: var(--wm-card);
+  color: var(--wm-ink);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+.ivx .ivx-tile:hover {
+  background: var(--wm-card-2);
+}
+.ivx .ivx-tile input,
+.ivx .ivx-mode input,
+.ivx .ivx-seg input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.ivx .ivx-tile:has(input:checked) {
+  border-color: color-mix(in srgb, var(--wm-lime) 75%, transparent);
+  background: var(--wm-lime-soft);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--wm-lime) 75%, transparent);
+}
+.ivx .ivx-tile:has(input:focus-visible),
+.ivx .ivx-mode:has(input:focus-visible),
+.ivx .ivx-seg label:has(input:focus-visible) {
+  outline: 2px solid var(--wm-lime);
+  outline-offset: 2px;
+}
+.ivx .ivx-tile-ic {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--ivx-hue, #6b7266) 15%, transparent);
+  color: var(--ivx-hue, var(--wm-muted));
+}
+.ivx .ivx-tile-ic svg {
+  width: 20px;
+  height: 20px;
+}
+.ivx .ivx-tile-name {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+}
+.ivx .ivx-tile[data-type="saham"] {
+  --ivx-hue: #3f9a2e;
+}
+.ivx .ivx-tile[data-type="reksa_dana"] {
+  --ivx-hue: #1f8a5a;
+}
+.ivx .ivx-tile[data-type="obligasi"] {
+  --ivx-hue: #3a74c4;
+}
+.ivx .ivx-tile[data-type="emas"] {
+  --ivx-hue: #c08a12;
+}
+.ivx .ivx-tile[data-type="kripto"] {
+  --ivx-hue: #e07010;
+}
+.ivx .ivx-tile[data-type="deposito"] {
+  --ivx-hue: #6f9a1a;
+}
+.dark .ivx .ivx-tile[data-type="obligasi"] {
+  --ivx-hue: #79a6ec;
+}
+
+.ivx .ivx-modes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.ivx .ivx-mode {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--wm-line);
+  border-radius: 14px;
+  cursor: pointer;
+}
+.ivx .ivx-mode::before {
+  content: "";
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border: 2px solid var(--wm-muted);
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+.ivx .ivx-mode:has(input:checked) {
+  border-color: color-mix(in srgb, var(--wm-lime) 75%, transparent);
+  background: var(--wm-lime-soft);
+}
+.ivx .ivx-mode:has(input:checked)::before {
+  border: 6px solid var(--commit);
+}
+.ivx .ivx-mode > span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.ivx .ivx-mode strong {
+  font-size: 14px;
+}
+.ivx .ivx-mode small {
+  color: var(--wm-muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+/* ── Buy / sell segmented control ──────────────────────── */
+.ivx .ivx-seg {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--wm-card-2);
+}
+.ivx .ivx-seg label {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  border-radius: 11px;
+  color: var(--wm-ink);
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.ivx .ivx-seg label svg {
+  width: 18px;
+  height: 18px;
+}
+/* The commit pair: forest + light ink in light, lime + dark ink in dark —
+   never white on lime. */
+.ivx .ivx-seg label:has(input:checked) {
+  background: var(--commit);
+  color: var(--commit-foreground);
+}
+
+/* ── Fields ────────────────────────────────────────────── */
+.ivx .ivx-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+  align-items: start;
+}
+.ivx .ivx-grid > [data-wide] {
+  grid-column: 1 / -1;
+}
+.ivx .ivx-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.ivx .ivx-label {
+  color: var(--wm-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+.ivx .ivx-req {
+  color: var(--destructive);
+}
+.ivx .ivx-control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.ivx .ivx-hint {
+  color: var(--wm-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.ivx .ivx-field-error {
+  color: var(--destructive);
+  font-size: 13px;
+  font-weight: 600;
+}
+.ivx .ivx-error {
+  margin: 0;
+}
+.ivx :is(.input, .select, .textarea) {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border-radius: 12px;
+}
+.ivx .input.mono {
+  font-variant-numeric: tabular-nums;
+}
+.ivx [aria-invalid="true"] {
+  border-color: var(--destructive);
+}
+/* Native select chevron: the shared `.select:focus-visible` uses the
+   `background` shorthand (repeat) and `.dark .select` restores the image, so
+   a focused dark select tiled the chevron. Pin the longhands. */
+.ivx .select,
+.ivx .select:focus-visible {
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px 16px;
+  padding-right: 36px;
+}
+.ivx :is(input, select, textarea, button):focus-visible {
+  outline: 2px solid var(--wm-lime);
+  outline-offset: 2px;
+}
+
+.ivx .ivx-adorn {
+  position: relative;
+  min-width: 0;
+}
+.ivx .ivx-adorn .input {
+  padding-left: 54px;
+}
+.ivx .ivx-adorn:has(.ivx-suffix) .input {
+  padding-right: 96px;
+}
+.ivx .ivx-mark,
+.ivx .ivx-suffix {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--wm-muted);
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.ivx .ivx-mark {
+  left: 14px;
+}
+.ivx .ivx-suffix {
+  right: 14px;
+  max-width: 82px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ivx .ivx-qty {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(96px, 120px);
+  gap: 8px;
+}
+.ivx .ivx-unit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: var(--wm-card-2);
+  color: var(--wm-muted);
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+.ivx .ivx-time {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+.ivx .ivx-time > * {
+  flex: 1 1 0;
+}
+
+.ivx .ivx-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.ivx .ivx-check input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--commit);
+}
+
+.ivx .ivx-static {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-height: 44px;
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: var(--wm-card-2);
+}
+.ivx .ivx-static strong {
+  font-size: 15px;
+}
+.ivx .ivx-static span {
+  color: var(--wm-muted);
+  font-size: 12.5px;
+}
+.ivx .ivx-holding {
+  justify-content: space-between;
+  background: var(--wm-card-2);
+}
+
+.ivx .ivx-file {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 10px 14px;
+  border: 1px dashed var(--wm-line);
+  border-radius: 12px;
+  color: var(--wm-muted);
+  font-size: 13px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.ivx .ivx-file svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+.ivx .ivx-file input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.ivx .ivx-file:focus-within {
+  outline: 2px solid var(--wm-lime);
+  outline-offset: 2px;
+}
+
+/* ── Pocket picker: link + empty state ─────────────────── */
+.ivx .ivx-link {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--wm-ink);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.ivx .ivx-link svg {
+  width: 16px;
+  height: 16px;
+}
+.ivx .ivx-empty {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border: 1px dashed var(--wm-line);
+  border-radius: 14px;
+  background: var(--wm-card-2);
+}
+.ivx .ivx-empty-ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--wm-lime-soft);
+  color: var(--wm-ink);
+}
+.ivx .ivx-empty-ic svg {
+  width: 20px;
+  height: 20px;
+}
+.ivx .ivx-empty-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.ivx .ivx-empty-text strong {
+  font-size: 14px;
+}
+.ivx .ivx-empty-text p {
+  margin: 0;
+  color: var(--wm-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.ivx .ivx-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+.ivx .ivx-empty-actions .btn {
+  min-height: 44px;
+  border-radius: 999px;
+}
+.ivx .ivx-empty-actions .btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ── Summary / estimate ────────────────────────────────── */
+.ivx .ivx-sum {
+  padding: 16px 18px;
+  border: 1px solid var(--wm-line);
+  border-radius: 16px;
+  background: var(--wm-card-2);
+}
+.ivx .ivx-sum-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 800;
+}
+.ivx .ivx-sum-title svg {
+  width: 18px;
+  height: 18px;
+  color: var(--wm-good);
+}
+.ivx .ivx-sum dl {
+  margin: 0;
+}
+.ivx .ivx-sum dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  /* one line: an amount (and its sign) never breaks; the size is capped */
+  white-space: nowrap;
+}
+.ivx .ivx-sum dd[data-tone="good"] {
+  color: var(--wm-good);
+}
+.ivx .ivx-sum dd[data-tone="bad"] {
+  color: var(--wm-bad);
+}
+.ivx .ivx-sum small {
+  display: block;
+  color: var(--wm-muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.ivx .ivx-sum-grid {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 12px 0;
+}
+.ivx .ivx-sum-grid > div {
+  min-width: 0;
+  padding: 0 16px;
+  border-left: 1px solid var(--wm-line);
+}
+.ivx .ivx-sum-grid > div:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+.ivx .ivx-sum-grid dt {
+  color: var(--wm-muted);
+  font-size: 12.5px;
+}
+.ivx .ivx-sum-grid dd {
+  margin: 4px 0 2px;
+  font-size: clamp(17px, 4.6vw, 20px);
+  font-weight: 800;
+  line-height: 1.2;
+}
+.ivx .ivx-sum-list > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 0;
+}
+.ivx .ivx-sum-list > .ivx-sum-key {
+  border-top: 1px solid var(--wm-line);
+}
+.ivx .ivx-sum-list dt {
+  min-width: 0;
+  color: var(--wm-ink);
+  font-size: 14px;
+}
+.ivx .ivx-sum-list dd {
+  flex: none;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: right;
+}
+.ivx .ivx-sum-list .ivx-sum-key dd {
+  font-size: clamp(16px, 4.4vw, 18px);
+  font-weight: 800;
+}
+.ivx .ivx-sum-note {
+  margin: 10px 0 0;
+  color: var(--wm-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* ── Buy/sell: label-left rows on wide screens ─────────── */
+.ivx .ivx-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+@media (min-width: 561px) {
+  .ivx .ivx-rows > .ivx-field {
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr);
+    gap: 14px;
+    align-items: start;
+  }
+  .ivx .ivx-rows > .ivx-field > .ivx-label {
+    padding-top: 12px;
+  }
+  .ivx .ivx-rows > .ivx-check {
+    padding-left: 164px;
+  }
+}
+
+/* ── Tablet ────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .ivx .ivx-tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* ── Phones: full-screen sheet, one column, sticky footer ─
+   (768 = the shared dialog's bottom-sheet boundary). Tailwind's
+   -translate-x/y-1/2 drive the standalone `translate` via these variables —
+   zero them, or the sheet sits half off-screen. */
+@media (max-width: 768px) {
+  .dialog.ivx.ivx-trade,
+  .dialog.wm-panel.ivx-pos {
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    border-radius: 0;
+    transform: none;
+    --tw-translate-x: 0;
+    --tw-translate-y: 0;
+  }
+  .ivx .ivx-head {
+    padding: 16px 16px 28px;
+  }
+  .ivx .ivx-title {
+    font-size: 21px;
+  }
+  .ivx .ivx-sub {
+    font-size: 13px;
+  }
+  .ivx .ivx-head-ic {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+  }
+  .ivx .ivx-body {
+    padding: 20px 16px 24px;
+    scroll-padding-bottom: 24px;
+  }
+  /* iOS zooms into any field under 16px */
+  .ivx :is(.input, .select, .textarea) {
+    font-size: 16px;
+  }
+  .ivx .ivx-foot {
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  }
+  .ivx .ivx-cancel {
+    min-width: 0;
+    flex: 0 0 auto;
+    padding-inline: 22px;
+  }
+  .ivx .ivx-save {
+    flex: 1 1 auto;
+  }
+}
+@media (max-width: 640px) {
+  .ivx .ivx-sum-grid {
+    grid-auto-flow: row;
+  }
+  .ivx .ivx-sum-grid > div {
+    padding: 10px 0 0;
+    border-top: 1px solid var(--wm-line);
+    border-left: 0;
+  }
+  .ivx .ivx-sum-grid > div:first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+}
+@media (max-width: 560px) {
+  .ivx .ivx-grid,
+  .ivx .ivx-modes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ivx .ivx-tile {
+    min-height: 72px;
+  }
+  .ivx .ivx-sum-list > div {
+    flex-wrap: wrap;
+  }
+  .ivx .ivx-sum-list dd {
+    max-width: none;
+    margin-left: auto;
+  }
+}
+
+/* Touch: every control at least 44px tall */
+@media (pointer: coarse) {
+  .ivx .ivx-link,
+  .ivx .ivx-check,
+  .ivx .ivx-seg label,
+  .ivx :is(.input, .select) {
+    min-height: 44px;
+  }
+}
