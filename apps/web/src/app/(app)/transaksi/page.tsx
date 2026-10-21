@@ -2015,7 +2015,6 @@ function TransaksiPageInner() {
             activeFilterCount - (dateFrom || dateTo ? 1 : 0) + (needle ? 1 : 0)
           }
           onExport={exportCsv}
-          onRecord={() => setTxnOpen(true)}
           trend={chart}
           rows={visibleRows}
           total={visible.length}

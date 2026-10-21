@@ -523,7 +523,8 @@
     gap: 12px;
   }
   .tx-bar-row .tx-search {
-    flex: 1 1 260px;
+    flex: 1 1 200px;
+    min-width: 180px;
   }
   .tx-bar-field {
     display: flex;
@@ -534,6 +535,14 @@
   }
   .tx-bar-field .select {
     min-width: 120px;
+    max-width: 200px;
+  }
+  .tx-bar-row .tx-btn {
+    flex: none;
+    white-space: nowrap;
+  }
+  .tx-trend-link {
+    white-space: nowrap;
   }
   .tx-trend-link {
     display: inline-flex;

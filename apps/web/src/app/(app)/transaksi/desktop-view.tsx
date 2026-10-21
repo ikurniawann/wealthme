@@ -10,7 +10,6 @@ import {
   Info,
   MoreHorizontal,
   Pencil,
-  Plus,
   Search,
   SlidersHorizontal,
   Trash2,
@@ -94,7 +93,6 @@ type DesktopViewProps = {
   onReset: () => void;
   activeFilterCount: number;
   onExport: () => void;
-  onRecord: () => void;
   trend: ReactNode;
   rows: TransactionDto[];
   total: number;
@@ -193,14 +191,6 @@ export function DesktopView(props: DesktopViewProps) {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <button
-            type="button"
-            className="tx-btn tx-btn--primary"
-            onClick={props.onRecord}
-          >
-            <Plus aria-hidden="true" />
-            {d.record}
-          </button>
         </div>
       </header>
 
