@@ -55,6 +55,8 @@ function makePrisma() {
     // EPIC-023 E1 — tenant-scoped lookups for the optional obligation links.
     liability: { findUnique: jest.fn() },
     insurance: { findUnique: jest.fn() },
+    investmentTransaction: { findFirst: jest.fn().mockResolvedValue(null) },
+    assetTransaction: { findFirst: jest.fn().mockResolvedValue(null) },
     // Revisi F Finding 2 — `assertNotObligationLinked` also looks up
     // whether a GoalContribution references this transactionId; defaults
     // to "no linked goal contribution" so every pre-existing test keeps
@@ -2027,6 +2029,8 @@ function makeFakePrivacyPrisma(
     },
     category: { findUnique: jest.fn(), findMany: jest.fn() },
     budget: { findFirst: jest.fn() },
+    investmentTransaction: { findFirst: jest.fn().mockResolvedValue(null) },
+    assetTransaction: { findFirst: jest.fn().mockResolvedValue(null) },
     member: {
       findFirst: jest.fn(),
       findUnique: jest.fn().mockResolvedValue(null),
