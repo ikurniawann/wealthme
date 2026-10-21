@@ -5,12 +5,19 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   MaxLength,
   MinLength,
 } from "class-validator";
 export class UpdateInvestmentMetadataDto {
   @IsEnum(InvestmentMarket) market!: InvestmentMarket;
   @IsOptional() @IsString() @MinLength(1) @MaxLength(200) name?: string;
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(20)
+  @Matches(/^[A-Z0-9._-]+$/i)
+  ticker?: string;
   @IsOptional() @IsString() @MaxLength(64) ownerUserId?: string | null;
   @IsOptional() @IsUUID() platformAccountId?: string | null;
   @IsOptional() @IsUUID() cashAccountId?: string | null;

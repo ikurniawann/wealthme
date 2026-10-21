@@ -132,12 +132,20 @@ export class InvestmentMetadataService {
         });
       }
       const details = (h.details ?? {}) as InvestmentDetails;
+      const manual = dto.manualInstrument ?? details.manualInstrument ?? false;
+      // Same rule as create: a feed-priced instrument needs a real ticker.
+      const ticker = dto.ticker?.trim().toUpperCase() || h.ticker;
+      if (["saham", "kripto"].includes(h.type) && !manual && !ticker.trim())
+        throw new BadRequestException(
+          "Ticker wajib untuk instrumen dengan sumber harga otomatis.",
+        );
       const name = dto.name?.trim() ?? h.name;
       if (!name) throw new BadRequestException("Nama investasi wajib diisi.");
       const updated = await tx.investment.update({
         where: { id },
         data: {
           name,
+          ticker,
           market: dto.market,
           ownerUserId: owner,
           platformAccountId: platformId,
@@ -168,6 +176,7 @@ export class InvestmentMetadataService {
             action: "classify",
             before: {
               name: h.name,
+              ticker: h.ticker,
               market: h.market,
               platformAccountId: h.platformAccountId,
               cashAccountId: h.cashAccountId,
@@ -177,6 +186,7 @@ export class InvestmentMetadataService {
             },
             after: {
               name: updated.name,
+              ticker: updated.ticker,
               market: updated.market,
               platformAccountId: updated.platformAccountId,
               cashAccountId: updated.cashAccountId,

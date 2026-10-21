@@ -55,6 +55,7 @@ export function DetailMetadata({
       ? (["IDX", "NASDAQ", "NYSE"] as const)
       : [effectiveMarketFor(h.type, null, h.currency)];
   const [name, setName] = useState(h.name);
+  const [ticker, setTicker] = useState(h.ticker);
   const [owner, setOwner] = useState(h.ownerUserId ?? "");
   // A non-stock holding has exactly one valid market: start on it.
   const [market, setMarket] = useState<InvestmentMarket | "">(
@@ -97,6 +98,7 @@ export function DetailMetadata({
           method: "PATCH",
           body: JSON.stringify({
             name: name.trim(),
+            ...(ticker.trim() ? { ticker: ticker.trim().toUpperCase() } : {}),
             market,
             platformAccountId: effectivePlatform || null,
             cashAccountId: pocket || null,
@@ -145,6 +147,22 @@ export function DetailMetadata({
                 enterKeyHint="next"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+              />
+            )}
+          </Field>
+          <Field label={f.ticker} required={priced && !manual}>
+            {(id) => (
+              <input
+                id={id}
+                className="input mono"
+                required={priced && !manual}
+                maxLength={20}
+                pattern="[A-Za-z0-9._\-]+"
+                autoComplete="off"
+                autoCapitalize="characters"
+                enterKeyHint="next"
+                value={ticker}
+                onChange={(e) => setTicker(e.target.value.toUpperCase())}
               />
             )}
           </Field>

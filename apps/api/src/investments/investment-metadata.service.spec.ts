@@ -14,6 +14,7 @@ describe("InvestmentMetadataService.update — catalog check", () => {
     type: "kripto",
     market: "CRYPTO",
     name: "Bitcoin",
+    ticker: "BTC",
     ownerUserId: null,
     platformAccountId: "pa-gotrade",
     cashAccountId: null,
@@ -59,6 +60,20 @@ describe("InvestmentMetadataService.update — catalog check", () => {
       actor,
     );
     expect(tx.investment.update).toHaveBeenCalled();
+  });
+
+  it("corrects a wrong ticker, uppercased", async () => {
+    const { tx, service } = build();
+    await service.update(
+      "fg",
+      "inv-1",
+      { market: "CRYPTO", ticker: " eth ", platformAccountId: "pa-gotrade" },
+      actor,
+    );
+    const call = tx.investment.update.mock.calls[0][0] as {
+      data: { ticker: string };
+    };
+    expect(call.data.ticker).toBe("ETH");
   });
 
   it("still refuses moving it to a platform that lacks the product", async () => {
