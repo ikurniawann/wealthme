@@ -119,11 +119,13 @@ describe("TxRow — read-only transaction detail view (EPIC-020 Task A)", () => 
     expect(
       dialog.getByRole("heading", { name: "Detail Transaksi" }),
     ).toBeInTheDocument();
+    // The amount, category and account also appear in the hero, subtitle and
+    // the (collapsed) balance-impact section, so match every occurrence.
     expect(
-      dialog.getByText("Rp 150.000", { exact: false }),
-    ).toBeInTheDocument();
-    expect(dialog.getByText("Belanja")).toBeInTheDocument();
-    expect(dialog.getByText("BCA Tabungan")).toBeInTheDocument();
+      dialog.getAllByText("Rp 150.000", { exact: false }).length,
+    ).toBeGreaterThan(0);
+    expect(dialog.getAllByText("Belanja").length).toBeGreaterThan(0);
+    expect(dialog.getAllByText("BCA Tabungan").length).toBeGreaterThan(0);
   });
 
   it("opens the detail dialog when Enter is pressed on the focused row", async () => {

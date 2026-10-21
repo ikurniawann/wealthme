@@ -1,4 +1,8 @@
-import { parseInvestment, rowKind } from "./investment-row";
+import {
+  investmentBreakdown,
+  parseInvestment,
+  rowKind,
+} from "./investment-row";
 
 describe("parseInvestment", () => {
   it("reads side, quantity and symbol from a buy description", () => {
@@ -6,6 +10,7 @@ describe("parseInvestment", () => {
       side: "buy",
       quantity: 0.0059,
       symbol: "ETH",
+      unitPrice: 42000000,
     });
   });
 
@@ -33,5 +38,27 @@ describe("rowKind", () => {
     expect(
       rowKind({ type: "expense", description: "Beli 2 BBCA @ 9 IDR" }),
     ).toBe("expense");
+  });
+});
+
+describe("investmentBreakdown", () => {
+  it("derives gross and fee from quantity x price versus the moved amount", () => {
+    expect(
+      investmentBreakdown({
+        type: "transfer",
+        description: "Jual 0.01 ETH @ 42000000 IDR",
+        amount: "419000",
+      }),
+    ).toMatchObject({ gross: 420000, fee: 1000, net: 419000 });
+  });
+
+  it("returns null for non-investment rows", () => {
+    expect(
+      investmentBreakdown({
+        type: "expense",
+        description: "Jual 0.01 ETH @ 42000000 IDR",
+        amount: "1",
+      }),
+    ).toBeNull();
   });
 });

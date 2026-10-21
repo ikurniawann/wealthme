@@ -9,10 +9,12 @@ import {
   Suspense,
   type ChangeEvent,
   type KeyboardEvent,
+  type ReactNode,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronDown,
+  ChevronRight,
   Plus,
   ArrowDownLeft,
   CreditCard,
@@ -99,6 +101,8 @@ import {
 } from "./desktop-view";
 import { isInvestmentTx } from "./investment-row";
 import { apiErrorMessage as extractApiErrorMessage } from "@/lib/api-error";
+import { TxDetailView, txReference } from "./tx-detail-view";
+import Link from "next/link";
 
 // EPIC-024 Task L3 (D15, US-TXN-9) — page-local helper, same convention as
 // `app/(app)/dana/page.tsx`'s own copy: never touch lib/api-client.ts.
@@ -972,6 +976,42 @@ export function AttachmentList({
   );
 }
 
+/** Detail panel body; owns the attachment-count query so it only runs while the panel is mounted. */
+function DetailBody({
+  tx,
+  open,
+  familyGroupId,
+  token,
+  attachments,
+  children,
+}: {
+  tx: TransactionDto;
+  open: boolean;
+  familyGroupId?: string;
+  token?: string;
+  attachments: ReactNode;
+  children: ReactNode;
+}) {
+  const { data } = useQuery<TransactionAttachmentDto[]>({
+    queryKey: ["transactions", familyGroupId, tx.id, "attachments"],
+    queryFn: () =>
+      apiFetch<TransactionAttachmentDto[]>(
+        `/family-groups/${familyGroupId}/transactions/${tx.id}/attachments`,
+        { token },
+      ),
+    enabled: open && !!familyGroupId && !!token,
+  });
+  return (
+    <TxDetailView
+      tx={tx}
+      attachmentCount={data ? data.length : null}
+      attachments={attachments}
+    >
+      {children}
+    </TxDetailView>
+  );
+}
+
 /** Read-only transaction detail view — opened by clicking/tapping a TxRow. */
 export function TransactionDetailDialog({
   tx,
@@ -994,11 +1034,6 @@ export function TransactionDetailDialog({
   token?: string;
 }) {
   const { t, locale } = useLocale();
-  const money = useMoney();
-  const isIncome = tx.type === "income";
-  const amount = parseFloat(tx.amount);
-  const amountStr = (isIncome ? "+" : "-") + money.format(amount);
-  const typeLabel = t.transaksi.typeLabels[tx.type] ?? tx.type;
   // C4 (group E retry round 4) — mirrors TxRow's own guard: the detail
   // view's own Edit/Hapus buttons must be honest too.
   const isObligationLinked = !!tx.liabilityId || !!tx.insuranceId;
@@ -1007,7 +1042,7 @@ export function TransactionDetailDialog({
   const editLockTooltip = isObligationLinked
     ? t.transaksi.obligationLockedTooltip
     : t.transaksi.editRightsLockedTooltip;
-
+  const isInvestment = isInvestmentTx(tx);
   return (
     <Dialog
       open={open}
@@ -1015,9 +1050,6 @@ export function TransactionDetailDialog({
         if (!o) onClose();
       }}
     >
-      {/* EPIC-026 Wave 8 — #dlg-tx-detail is the prototype's DEFAULT 480px
-          `.dialog` (only #dlg-tx-delete carries `dialog--sm`), so no width
-          modifier here. */}
       {/* Bento v2: detail views open as a right side panel (bottom sheet on phones). */}
       <PanelContent variant="side">
         <header className="wm-panel-head">
@@ -1026,7 +1058,7 @@ export function TransactionDetailDialog({
               {t.transaksi.detailDialogTitle}
             </DialogTitle>
             <DialogDescription className="wm-panel-desc">
-              {t.transaksi.detailDialogDesc}
+              {txReference(tx)}
             </DialogDescription>
           </div>
           <DialogClose className="wm-panel-x" aria-label={t.common.close}>
@@ -1034,49 +1066,50 @@ export function TransactionDetailDialog({
           </DialogClose>
         </header>
         <div className="wm-panel-body">
-          <div className="tx-detail-hero" data-type={tx.type}>
-            <span className="tx-detail-badge">{typeLabel}</span>
-            <span className="tx-detail-amt wm-num">{amountStr}</span>
-          </div>
-          <dl className="tx-kv">
-            <DetailRow
-              label={t.transaksi.detailCategoryLabel}
-              value={tx.categoryName ?? "—"}
-            />
-            <DetailRow
-              label={t.transaksi.detailAccountLabel}
-              value={tx.accountName ?? "—"}
-            />
-            <DetailRow
-              label={t.transaksi.detailDateTimeLabel}
-              value={formatDetailDateTime(tx.occurredAt, locale)}
-              mono
-            />
-            <DetailRow
-              label={t.transaksi.fieldDescLabel}
-              value={tx.description ?? "—"}
-            />
-            <DetailRow
-              label={t.transaksi.detailCreatedAtLabel}
-              value={formatDetailDateTime(tx.createdAt, locale)}
-              mono
-            />
-          </dl>
+          <DetailBody
+            tx={tx}
+            open={open}
+            familyGroupId={familyGroupId}
+            token={token}
+            attachments={
+              familyGroupId ? (
+                <AttachmentList
+                  familyGroupId={familyGroupId}
+                  transactionId={tx.id}
+                  token={token}
+                  open={open}
+                  // EPIC-036 — attachments are NOT obligation-locked on the API
+                  // (only PATCH/DELETE on the transaction row itself is), so
+                  // this uses tx.canModify alone, not the combined isEditLocked.
+                  canModify={tx.canModify !== false}
+                />
+              ) : null
+            }
+          >
+            <dl className="tx-kv">
+              <DetailRow
+                label={t.transaksi.detailCategoryLabel}
+                value={tx.categoryName ?? "—"}
+              />
+              <DetailRow
+                label={t.transaksi.detailDateTimeLabel}
+                value={formatDetailDateTime(tx.occurredAt, locale)}
+                mono
+              />
+              <DetailRow
+                label={t.transaksi.fieldDescLabel}
+                value={tx.description ?? "—"}
+              />
+              <DetailRow
+                label={t.transaksi.detailCreatedAtLabel}
+                value={formatDetailDateTime(tx.createdAt, locale)}
+                mono
+              />
+            </dl>
+          </DetailBody>
           {isEditLocked && <p className="wm-cap">{editLockTooltip}</p>}
           {tx.type === "expense" && (
             <PpnHint amount={tx.amount} occurredAt={tx.occurredAt} />
-          )}
-          {familyGroupId && (
-            <AttachmentList
-              familyGroupId={familyGroupId}
-              transactionId={tx.id}
-              token={token}
-              open={open}
-              // EPIC-036 — attachments are NOT obligation-locked on the API
-              // (only PATCH/DELETE on the transaction row itself is), so
-              // this uses tx.canModify alone, not the combined isEditLocked.
-              canModify={tx.canModify !== false}
-            />
           )}
         </div>
         <div className="wm-panel-foot">
@@ -1097,6 +1130,12 @@ export function TransactionDetailDialog({
             <Trash2 className="size-3.5" aria-hidden="true" />
             {t.transaksi.detailDeleteButton}
           </PillButton>
+          {isInvestment && (
+            <Link href="/investasi" className="txd-foot-link">
+              {t.transaksi.v2.deskDetailViewInvestment}
+              <ChevronRight aria-hidden="true" />
+            </Link>
+          )}
         </div>
       </PanelContent>
     </Dialog>
