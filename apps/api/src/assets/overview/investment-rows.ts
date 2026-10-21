@@ -105,6 +105,27 @@ function priceChange(
   };
 }
 
+/**
+ * The list's "Perubahan valuasi" for a holding is its unrealized change
+ * (market value − remaining cost), the same figure /investasi shows. It is
+ * known whenever the holding is priced and its cost is known, even with a
+ * single price observation; otherwise fall back to the price-to-price move.
+ */
+function holdingChange(
+  v: InvestmentValuationDto,
+  valueIdr: string | null,
+  prev: PreviousPrice | null,
+): AssetValueChangeDto {
+  if (valueIdr === null || v.unrealizedIdr === null)
+    return priceChange(v, prev);
+  return {
+    amountIdr: v.unrealizedIdr,
+    percent: v.unrealizedPct,
+    comparisonDate: null,
+    period: "previous_valuation",
+  };
+}
+
 function quantityUnit(v: InvestmentValuationDto, details: unknown): string {
   const gold = (details as InvestmentDetails | null)?.gold;
   if (v.type === "emas" && gold?.unit) return gold.unit;
@@ -172,7 +193,7 @@ export function investmentRow(
       netWorthValueIdr: v.netWorthIdr,
       costBasisIdr: v.costRemainingIdr,
       price: priceDto(v),
-      change: priceChange(v, input.previous),
+      change: holdingChange(v, valueIdr, input.previous),
       unrealizedPnlIdr: valueIdr === null ? null : v.unrealizedIdr,
       unrealizedPnlPercent: valueIdr === null ? null : v.unrealizedPct,
       duplicateWarning,
