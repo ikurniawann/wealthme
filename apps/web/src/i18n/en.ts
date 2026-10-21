@@ -4073,6 +4073,7 @@ export const en = {
       deskColAccount: "Account / source → destination",
       deskColAmount: "Amount",
       deskRowActions: "Row actions",
+      deskOwnerLabel: "Owner",
       deskDetailRecorded: "Recorded",
       deskDetailInvestSale: "Investment sale",
       deskDetailInvestBuy: "Investment purchase",

@@ -118,7 +118,7 @@ function SaleTable({ inv }: { inv: InvestmentBreakdown }) {
             </>
           )}
         </span>
-        <Link href="/investasi" className="txd-pos">
+        <Link href={`/investasi/${inv.id}`} className="txd-pos">
           {`${d.deskDetailViewPosition} ${inv.symbol}`}
           <ArrowUpRight aria-hidden="true" />
         </Link>
@@ -172,8 +172,11 @@ export function TxDetailView({
   const d = t.transaksi.v2;
   const title = useDetailTitle(tx);
   const kind = rowKind(tx);
-  const inv = investmentBreakdown(tx);
   const amount = parseFloat(tx.amount);
+  const rawInv = investmentBreakdown(tx);
+  // A foreign-currency ledger row has no rupiah net; the cash leg's own
+  // amount is the rupiah figure that moved.
+  const inv = rawInv && !rawInv.isIdr ? { ...rawInv, net: amount } : rawInv;
   const sign = kind === "income" ? "+" : kind === "expense" ? "-" : "";
   const when = new Date(
     `${tx.occurredAt.slice(0, 10)}T00:00:00`,

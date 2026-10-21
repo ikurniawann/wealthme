@@ -1530,6 +1530,7 @@ function TransaksiPageInner() {
   // shipped layout below.
   const isDesktop = useMediaQuery("(min-width: 721px)");
   const [deskPageSize, setDeskPageSize] = useState(DESK_PAGE_SIZE);
+  const [ownerFilter, setOwnerFilter] = useState("");
   // The desktop KPI strip is per month: open on the current month unless a
   // deep link already chose a range. Applied once, while rendering (React's
   // "adjust state on change" pattern); Reset returns to all time.
@@ -1718,6 +1719,7 @@ function TransaksiPageInner() {
   };
 
   const handleResetFilters = () => {
+    setOwnerFilter("");
     setFilter("all");
     setCategoryFilter("");
     setDateFrom("");
@@ -1768,19 +1770,31 @@ function TransaksiPageInner() {
   const truncated = (data?.meta?.total ?? 0) > fetchedTransactions.length;
   const summary = data?.summary;
 
+  // "Pemilik": distinct account owners present in the loaded rows.
+  const ownerOptions = [
+    ...new Map(
+      transactions
+        .filter((tx) => tx.accountOwnerUserId && tx.accountOwnerName)
+        .map((tx) => [tx.accountOwnerUserId!, tx.accountOwnerName!] as const),
+    ),
+  ].map(([id, name]) => ({ id, name }));
+  const ownerScoped = ownerFilter
+    ? transactions.filter((tx) => tx.accountOwnerUserId === ownerFilter)
+    : transactions;
+
   // Apply filter
   const filtered =
     filter === "all"
-      ? transactions
+      ? ownerScoped
       : filter === "kartu_kredit"
-        ? transactions.filter((tx) => isCreditCard(tx, creditCardLiabilityIds))
+        ? ownerScoped.filter((tx) => isCreditCard(tx, creditCardLiabilityIds))
         : filter === "investasi"
-          ? transactions.filter(isInvestmentTx)
+          ? ownerScoped.filter(isInvestmentTx)
           : filter === "transfer"
-            ? transactions.filter(
+            ? ownerScoped.filter(
                 (tx) => tx.type === "transfer" && !isInvestmentTx(tx),
               )
-            : transactions.filter((tx) => tx.type === filter);
+            : ownerScoped.filter((tx) => tx.type === filter);
 
   // Sort by occurredAt — affects both day-group order and within-day row
   // order. occurredAt is date-only (no time picker in the add-transaction
@@ -1975,6 +1989,12 @@ function TransaksiPageInner() {
                 ? `/transaksi?accountId=${encodeURIComponent(value)}`
                 : "/transaksi",
             );
+          }}
+          owners={ownerOptions}
+          ownerId={ownerFilter}
+          onOwner={(value) => {
+            setOwnerFilter(value);
+            setPage(1);
           }}
           categories={filterCategories}
           categoryId={categoryFilter}

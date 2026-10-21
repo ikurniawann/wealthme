@@ -4151,6 +4151,7 @@ export const id = {
       deskColAccount: "Akun / sumber → tujuan",
       deskColAmount: "Nominal",
       deskRowActions: "Aksi baris",
+      deskOwnerLabel: "Pemilik",
       deskDetailRecorded: "Dicatat",
       deskDetailInvestSale: "Penjualan investasi",
       deskDetailInvestBuy: "Pembelian investasi",

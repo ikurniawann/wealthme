@@ -37,7 +37,7 @@ import { DateRangeFilterField } from "@/components/wm/date-range-field";
 import { useLocale } from "@/hooks/use-locale";
 import { useMoney } from "@/hooks/use-money";
 import { cn } from "@/lib/utils";
-import { parseInvestment, rowKind, type RowKind } from "./investment-row";
+import { investmentBreakdown, rowKind, type RowKind } from "./investment-row";
 
 export type DeskFilter =
   | "all"
@@ -86,6 +86,9 @@ type DesktopViewProps = {
   categories: Option[] | undefined;
   categoryId: string;
   onCategory: (value: string) => void;
+  owners: Option[];
+  ownerId: string;
+  onOwner: (value: string) => void;
   sortOrder: "newest" | "oldest";
   onSort: (value: "newest" | "oldest") => void;
   onReset: () => void;
@@ -279,6 +282,23 @@ export function DesktopView(props: DesktopViewProps) {
               ))}
             </select>
           </label>
+          {props.owners.length > 0 && (
+            <label className="tx-bar-field">
+              <span>{d.deskOwnerLabel}</span>
+              <select
+                className="select"
+                value={props.ownerId}
+                onChange={(e) => props.onOwner(e.target.value)}
+              >
+                <option value="">{d.deskAllOption}</option>
+                {props.owners.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <button
             type="button"
             className="tx-btn"
@@ -531,7 +551,7 @@ function DeskRow({
   const d = t.transaksi.v2;
   const [open, setOpen] = useState(false);
   const kind = rowKind(tx);
-  const inv = kind === "investment" ? parseInvestment(tx.description) : null;
+  const inv = investmentBreakdown(tx);
   const amount = parseFloat(tx.amount);
   const sign = kind === "income" ? "+" : kind === "expense" ? "-" : "";
   const label =
@@ -589,7 +609,7 @@ function DeskRow({
               {inv?.side === "sell" && (
                 <>
                   {" • "}
-                  <Link href="/investasi" className="tx-exec">
+                  <Link href={`/investasi/${inv.id}`} className="tx-exec">
                     {d.deskExecDetail}
                     <ArrowUpRight aria-hidden="true" />
                   </Link>

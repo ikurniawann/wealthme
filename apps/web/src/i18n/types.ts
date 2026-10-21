@@ -3981,6 +3981,7 @@ export type I18nDictionary = {
       deskColAccount: string;
       deskColAmount: string;
       deskRowActions: string;
+      deskOwnerLabel: string;
       deskDetailRecorded: string;
       deskDetailInvestSale: string;
       deskDetailInvestBuy: string;
