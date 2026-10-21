@@ -1131,6 +1131,11 @@ export const en = {
       nameRequiredError: "Name is required.",
       usernameRequiredError: "Username is required.",
       passwordRequiredError: "Password is required.",
+      passwordTooShortError: "Password must be at least 8 characters.",
+      usernameInvalidError:
+        "Username must be 3-30 characters: letters, numbers, underscores or dots.",
+      usernameTakenError: "That username is taken. Try another.",
+      emailInvalidError: "Enter a valid email address.",
       showPassword: "Show password",
       hidePassword: "Hide password",
       roleLabel: "System role",

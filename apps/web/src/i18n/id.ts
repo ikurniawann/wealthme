@@ -1137,6 +1137,11 @@ export const id = {
       nameRequiredError: "Nama wajib diisi.",
       usernameRequiredError: "Username wajib diisi.",
       passwordRequiredError: "Password wajib diisi.",
+      passwordTooShortError: "Password minimal 8 karakter.",
+      usernameInvalidError:
+        "Username 3-30 karakter: huruf, angka, garis bawah, atau titik.",
+      usernameTakenError: "Username sudah dipakai. Coba yang lain.",
+      emailInvalidError: "Format email tidak valid.",
       showPassword: "Tampilkan password",
       hidePassword: "Sembunyikan password",
       roleLabel: "Peran sistem",

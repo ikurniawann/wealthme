@@ -16,6 +16,13 @@ import { InfoTip, PillButton } from "@/components/wm";
 import { AdvancedDisclosure } from "@/components/crud/advanced-disclosure";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
+import {
+  mapServerFieldErrors,
+  validateMemberForm,
+  type MemberField,
+  type MemberFieldErrorKey,
+  type MemberFieldErrors,
+} from "./member-form-errors";
 import { queryKeys } from "@/lib/query-keys";
 import { MemberRelationshipSchema } from "@wealthme/contracts";
 import type {
@@ -103,11 +110,19 @@ export function AddMemberDialog({
   // Hardening batch G3 (P1) — "Buat Akun" used to return silently when a
   // required field was empty: no inline error, no aria-invalid, no toast.
   // Mirrors reset-password-dialog.tsx's inline-error pattern.
-  const [fieldErrors, setFieldErrors] = useState<{
-    name?: boolean;
-    username?: boolean;
-    password?: boolean;
-  }>({});
+  const [fieldErrors, setFieldErrors] = useState<MemberFieldErrors>({});
+  const copy = t.akun.addDependant;
+  const errorCopy: Record<MemberFieldErrorKey, string> = {
+    nameRequired: copy.nameRequiredError,
+    usernameRequired: copy.usernameRequiredError,
+    usernameInvalid: copy.usernameInvalidError,
+    usernameTaken: copy.usernameTakenError,
+    passwordRequired: copy.passwordRequiredError,
+    passwordTooShort: copy.passwordTooShortError,
+    emailInvalid: copy.emailInvalidError,
+  };
+  const clearError = (field: MemberField) =>
+    setFieldErrors((e) => ({ ...e, [field]: undefined }));
   // FIX 2 (HIGH, react-reviewer + security-reviewer) — show/hide toggle so
   // the head can verify the initial password before handing it over, same
   // pattern as login/page.tsx, without it being permanently plaintext.
@@ -178,6 +193,13 @@ export function AddMemberDialog({
       }
     },
     onError: (err) => {
+      // Field-specific API rejections (username taken, DTO validation) land
+      // under their field; only unknown errors fall back to the toast.
+      const mapped = mapServerFieldErrors(err);
+      if (mapped) {
+        setFieldErrors(mapped);
+        return;
+      }
       toast.error(
         extractApiErrorMessage(err, t.akun.addDependant.toastCreateFailed),
       );
@@ -189,13 +211,14 @@ export function AddMemberDialog({
     const username = usernameRef.current?.value?.trim() ?? "";
     const email = emailRef.current?.value?.trim() ?? "";
     const initialPassword = passwordRef.current?.value ?? "";
-    const errors = {
-      name: !name,
-      username: !username,
-      password: !initialPassword,
-    };
+    const errors = validateMemberForm({
+      name,
+      username,
+      password: initialPassword,
+      email,
+    });
     setFieldErrors(errors);
-    if (errors.name || errors.username || errors.password) return;
+    if (Object.keys(errors).length > 0) return;
     if (!familyGroupId) return;
     // EPIC-024 A1 — the istri co-master path always sends
     // relationship: "istri" regardless of what the (disabled) relationship
@@ -345,20 +368,18 @@ export function AddMemberDialog({
                   className="input"
                   placeholder={t.akun.addDependant.namePlaceholder}
                   type="text"
-                  aria-invalid={fieldErrors.name}
+                  aria-invalid={Boolean(fieldErrors.name)}
                   aria-describedby={
                     fieldErrors.name ? `${fieldId}-name-error` : undefined
                   }
-                  onChange={() =>
-                    setFieldErrors((e) => ({ ...e, name: false }))
-                  }
+                  onChange={() => clearError("name")}
                 />
                 {fieldErrors.name && (
                   <p
                     id={`${fieldId}-name-error`}
                     className="hint text-destructive"
                   >
-                    {t.akun.addDependant.nameRequiredError}
+                    {errorCopy[fieldErrors.name]}
                   </p>
                 )}
               </div>
@@ -375,15 +396,13 @@ export function AddMemberDialog({
                     type="text"
                     autoCapitalize="none"
                     autoCorrect="off"
-                    aria-invalid={fieldErrors.username}
+                    aria-invalid={Boolean(fieldErrors.username)}
                     aria-describedby={
                       fieldErrors.username
                         ? `${fieldId}-username-error`
                         : undefined
                     }
-                    onChange={() =>
-                      setFieldErrors((e) => ({ ...e, username: false }))
-                    }
+                    onChange={() => clearError("username")}
                   />
                   <span className="mono grid shrink-0 place-items-center rounded-r-[9px] border border-l-0 bg-secondary px-2.5 text-[12.5px] text-muted-foreground">
                     @{handle ?? "…"}
@@ -394,7 +413,7 @@ export function AddMemberDialog({
                     id={`${fieldId}-username-error`}
                     className="hint text-destructive"
                   >
-                    {t.akun.addDependant.usernameRequiredError}
+                    {errorCopy[fieldErrors.username]}
                   </p>
                 )}
               </div>
@@ -410,15 +429,13 @@ export function AddMemberDialog({
                     placeholder={t.akun.addDependant.passwordPlaceholder}
                     type={showPassword ? "text" : "password"}
                     autoComplete="new-password"
-                    aria-invalid={fieldErrors.password}
+                    aria-invalid={Boolean(fieldErrors.password)}
                     aria-describedby={
                       fieldErrors.password
                         ? `${fieldId}-password-error`
                         : undefined
                     }
-                    onChange={() =>
-                      setFieldErrors((e) => ({ ...e, password: false }))
-                    }
+                    onChange={() => clearError("password")}
                   />
                   <button
                     type="button"
@@ -447,7 +464,7 @@ export function AddMemberDialog({
                     id={`${fieldId}-password-error`}
                     className="hint text-destructive"
                   >
-                    {t.akun.addDependant.passwordRequiredError}
+                    {errorCopy[fieldErrors.password]}
                   </p>
                 )}
               </div>
@@ -532,7 +549,10 @@ export function AddMemberDialog({
                 </select>
               </div>
 
-              <AdvancedDisclosure label={t.common.advancedOptions}>
+              <AdvancedDisclosure
+                label={t.common.advancedOptions}
+                defaultOpen={Boolean(fieldErrors.email)}
+              >
                 <div className="field mt-0">
                   <label className="label" htmlFor={`${fieldId}-email`}>
                     {t.akun.addDependant.emailLabel}
@@ -544,11 +564,26 @@ export function AddMemberDialog({
                     placeholder={t.akun.addDependant.emailPlaceholder}
                     type="email"
                     autoComplete="off"
-                    aria-describedby={`${fieldId}-email-hint`}
+                    aria-invalid={fieldErrors.email ? true : undefined}
+                    aria-describedby={
+                      fieldErrors.email
+                        ? `${fieldId}-email-error`
+                        : `${fieldId}-email-hint`
+                    }
+                    onChange={() => clearError("email")}
                   />
-                  <p className="hint" id={`${fieldId}-email-hint`}>
-                    {t.akun.addDependant.emailHint}
-                  </p>
+                  {fieldErrors.email ? (
+                    <p
+                      id={`${fieldId}-email-error`}
+                      className="hint text-destructive"
+                    >
+                      {errorCopy[fieldErrors.email]}
+                    </p>
+                  ) : (
+                    <p className="hint" id={`${fieldId}-email-hint`}>
+                      {t.akun.addDependant.emailHint}
+                    </p>
+                  )}
                 </div>
                 <div className="field mt-0">
                   <div className="flex items-center gap-1">

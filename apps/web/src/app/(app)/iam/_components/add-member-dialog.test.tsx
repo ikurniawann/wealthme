@@ -301,6 +301,48 @@ describe("AddMemberDialog — inline validation errors on empty required fields"
     );
   });
 
+  it("rejects a 6-char password inline under the field, with no request or toast", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.type(screen.getByLabelText(L.nameLabel), "Supri");
+    await user.type(screen.getByLabelText(L.usernameLabel), "supri");
+    await user.type(screen.getByLabelText(L.passwordLabel), "123456");
+    await user.click(screen.getByRole("button", { name: L.createButton }));
+
+    const msg = await screen.findByText(L.passwordTooShortError);
+    const input = screen.getByLabelText(L.passwordLabel);
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(input.getAttribute("aria-describedby")).toBe(msg.id);
+    expect(callsTo("/members/dependant", "POST")).toHaveLength(0);
+    expect(mockToastError).not.toHaveBeenCalled();
+  });
+
+  it("shows a server USERNAME_TAKEN rejection under the username field, not as a toast", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    mockApiFetch.mockImplementation(
+      (path: string, init?: { method?: string }) =>
+        String(path).endsWith("/members/dependant") && init?.method === "POST"
+          ? Promise.reject({
+              status: 409,
+              message: "taken",
+              code: "USERNAME_TAKEN",
+            })
+          : Promise.resolve({}),
+    );
+
+    await fillRequired(user);
+    await user.click(screen.getByRole("button", { name: L.createButton }));
+
+    expect(await screen.findByText(L.usernameTakenError)).toBeInTheDocument();
+    expect(screen.getByLabelText(L.usernameLabel)).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(mockToastError).not.toHaveBeenCalled();
+  });
+
   it("submits normally once every required field is filled", async () => {
     const user = userEvent.setup();
     renderDialog();

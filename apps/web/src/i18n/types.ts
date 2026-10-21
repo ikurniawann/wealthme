@@ -1380,6 +1380,10 @@ export type I18nDictionary = {
       nameRequiredError: string;
       usernameRequiredError: string;
       passwordRequiredError: string;
+      passwordTooShortError: string;
+      usernameInvalidError: string;
+      usernameTakenError: string;
+      emailInvalidError: string;
       showPassword: string;
       hidePassword: string;
       roleLabel: string;
