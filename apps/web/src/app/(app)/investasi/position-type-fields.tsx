@@ -3,6 +3,16 @@ import { useLocale } from "@/hooks/use-locale";
 import { Field } from "./investment-fields";
 import type { PositionState } from "./position-state";
 
+const GOLD_UNITS = ["gram"] as const;
+const OTHER_UNITS = [
+  "unit",
+  "lembar",
+  "lot",
+  "unit penyertaan",
+  "buah",
+  "bidang",
+] as const;
+
 /** Fields only one asset type has (bond, gold, deposit, other). */
 export function PositionTypeFields({
   value,
@@ -58,6 +68,30 @@ export function PositionTypeFields({
       )}
     </Field>
   );
+  // Gold prices per gram, so gram is the only unit the valuation understands;
+  // a legacy free-text unit stays selectable so editing never rewrites it.
+  const unitSelect = (options: readonly string[]) => {
+    const current = d.unit || options[0]!;
+    const all = options.includes(current) ? options : [current, ...options];
+    return (
+      <Field key="unit" label={f.unit} required>
+        {(id) => (
+          <select
+            id={id}
+            className="select"
+            value={current}
+            onChange={(e) => set("unit", e.target.value)}
+          >
+            {all.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        )}
+      </Field>
+    );
+  };
   if (value.type === "obligasi")
     return (
       <>
@@ -86,7 +120,7 @@ export function PositionTypeFields({
     return (
       <>
         {select("form", f.goldForm, ["physical", "digital"])}
-        {input("unit", f.unit, "text", true)}
+        {unitSelect(GOLD_UNITS)}
         {input("purity", f.purity)}
         {input("brand", f.brand)}
       </>
@@ -104,7 +138,7 @@ export function PositionTypeFields({
   if (value.type === "lainnya")
     return (
       <>
-        {input("unit", f.unit, "text", true)}
+        {unitSelect(OTHER_UNITS)}
         {select("valuationMethod", f.valuationMethod, [
           "manual_price",
           "fixed_cost",

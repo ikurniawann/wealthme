@@ -159,7 +159,7 @@ export function detailsForPosition(s: PositionState): InvestmentDetails {
     return {
       gold: {
         form: d.form as "physical" | "digital",
-        unit: d.unit,
+        unit: d.unit || "gram",
         purity: d.purity,
         brand: d.brand,
       },
@@ -177,7 +177,7 @@ export function detailsForPosition(s: PositionState): InvestmentDetails {
   if (s.type === "lainnya")
     return {
       other: {
-        unit: d.unit,
+        unit: d.unit || "unit",
         valuationMethod: d.valuationMethod as "fixed_cost" | "manual_price",
       },
     };
