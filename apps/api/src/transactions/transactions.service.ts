@@ -78,6 +78,43 @@ export type ActingMember = {
 // copy generated server-side (see WM_CONVENTIONS.md fidelity note).
 const ADMIN_FEE_DESCRIPTION = "Biaya admin top-up";
 
+// Read-side include for the transaction list/detail: category + both account
+// legs (with the owner's name for the "Pemilik" column) and the active
+// investment-ledger row this cash movement settles, so the web renders
+// "Beli ETH" from real fields instead of parsing the description.
+const DISPLAY_INCLUDE = {
+  category: { select: { name: true } },
+  account: {
+    select: {
+      name: true,
+      ownerUserId: true,
+      owner: { select: { name: true } },
+    },
+  },
+  toAccount: {
+    select: {
+      name: true,
+      ownerUserId: true,
+      owner: { select: { name: true } },
+    },
+  },
+  investmentLegs: {
+    where: { status: "active" as const },
+    take: 1,
+    select: {
+      kind: true,
+      quantity: true,
+      pricePerUnit: true,
+      grossAmount: true,
+      fee: true,
+      tax: true,
+      netAmount: true,
+      currency: true,
+      investment: { select: { id: true, ticker: true, name: true } },
+    },
+  },
+} satisfies Prisma.TransactionInclude;
+
 @Injectable()
 export class TransactionsService {
   private readonly logger = new Logger(TransactionsService.name);
@@ -130,11 +167,7 @@ export class TransactionsService {
         orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
         skip,
         take: limit,
-        include: {
-          category: { select: { name: true } },
-          account: { select: { name: true, ownerUserId: true } },
-          toAccount: { select: { name: true, ownerUserId: true } },
-        },
+        include: DISPLAY_INCLUDE,
       }),
       this.prisma.transaction.count({ where }),
     ]);
@@ -178,11 +211,7 @@ export class TransactionsService {
           restrictedTransactionWhere(viewerRole, viewerUserId),
         ],
       },
-      include: {
-        category: { select: { name: true } },
-        account: { select: { name: true, ownerUserId: true } },
-        toAccount: { select: { name: true, ownerUserId: true } },
-      },
+      include: DISPLAY_INCLUDE,
     });
     if (!tx) throw new NotFoundException("Transaction not found");
     return this.toDto(tx, actingMember);
@@ -1357,6 +1386,29 @@ export class TransactionsService {
     });
   }
 
+  /** The buy/sell ledger row behind a cash leg; null for any other row. */
+  private toInvestmentLeg(
+    leg:
+      | NonNullable<
+          Parameters<TransactionsService["toDto"]>[0]["investmentLegs"]
+        >[number]
+      | undefined,
+  ): TransactionResponseDto["investment"] {
+    if (!leg || (leg.kind !== "buy" && leg.kind !== "sell")) return null;
+    return {
+      id: leg.investment.id,
+      ticker: leg.investment.ticker,
+      name: leg.investment.name,
+      side: leg.kind,
+      quantity: leg.quantity.toString(),
+      unitPrice: leg.pricePerUnit.toString(),
+      gross: leg.grossAmount.toString(),
+      fee: leg.fee.plus(leg.tax).toString(),
+      net: leg.netAmount.toString(),
+      currency: leg.currency,
+    };
+  }
+
   private toDto(
     tx: {
       id: string;
@@ -1387,8 +1439,27 @@ export class TransactionsService {
       // creator" rather than crashing.
       createdByUserId?: string | null;
       category?: { name: string } | null;
-      account?: { name: string; ownerUserId?: string | null } | null;
-      toAccount?: { name: string; ownerUserId?: string | null } | null;
+      account?: {
+        name: string;
+        ownerUserId?: string | null;
+        owner?: { name: string } | null;
+      } | null;
+      toAccount?: {
+        name: string;
+        ownerUserId?: string | null;
+        owner?: { name: string } | null;
+      } | null;
+      investmentLegs?: {
+        kind: string;
+        quantity: { toString(): string };
+        pricePerUnit: { toString(): string };
+        grossAmount: { toString(): string };
+        fee: { plus(n: unknown): { toString(): string } };
+        tax: unknown;
+        netAmount: { toString(): string };
+        currency: string;
+        investment: { id: string; ticker: string; name: string };
+      }[];
     },
     viewerMember?: ActingMember,
   ): TransactionResponseDto {
@@ -1410,6 +1481,10 @@ export class TransactionsService {
       // now nullable to match).
       accountName: tx.account?.name ?? null,
       toAccountName: tx.toAccount?.name ?? null,
+      accountOwnerUserId: tx.account?.ownerUserId ?? null,
+      accountOwnerName: tx.account?.owner?.name ?? null,
+      toAccountOwnerName: tx.toAccount?.owner?.name ?? null,
+      investment: this.toInvestmentLeg(tx.investmentLegs?.[0]),
       occurredAt: tx.occurredAt.toISOString(),
       createdAt: tx.createdAt.toISOString(),
       // EPIC-036 (edit-rights) — "Pembuat + pemilik rekening": same rule

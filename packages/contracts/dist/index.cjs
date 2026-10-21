@@ -1002,7 +1002,26 @@ var TransactionDtoSchema = import_zod8.z.object({
   // the CURRENT viewer may PATCH/DELETE this row: its creator, or the owner
   // of a private account on either leg. Everyone else (incl. Master/
   // Co-Master) is read-only.
-  canModify: import_zod8.z.boolean()
+  canModify: import_zod8.z.boolean(),
+  // Owner of the account leg(s), for the "Pemilik" filter/column. Absent on
+  // responses from before these fields existed.
+  accountOwnerUserId: import_zod8.z.string().nullable().optional(),
+  accountOwnerName: import_zod8.z.string().nullable().optional(),
+  toAccountOwnerName: import_zod8.z.string().nullable().optional(),
+  // Cash leg of an investment buy/sell: the ledger row it settles. Decimal
+  // fields are strings; `fee` includes tax. Null/absent for every other row.
+  investment: import_zod8.z.object({
+    id: import_zod8.z.string().uuid(),
+    ticker: import_zod8.z.string(),
+    name: import_zod8.z.string(),
+    side: import_zod8.z.enum(["buy", "sell"]),
+    quantity: import_zod8.z.string(),
+    unitPrice: import_zod8.z.string(),
+    gross: import_zod8.z.string(),
+    fee: import_zod8.z.string(),
+    net: import_zod8.z.string(),
+    currency: import_zod8.z.string()
+  }).nullable().optional()
 });
 var TransactionSummarySchema = import_zod8.z.object({
   totalIncome: import_zod8.z.string(),

@@ -52,6 +52,28 @@ export const TransactionDtoSchema = z.object({
   // of a private account on either leg. Everyone else (incl. Master/
   // Co-Master) is read-only.
   canModify: z.boolean(),
+  // Owner of the account leg(s), for the "Pemilik" filter/column. Absent on
+  // responses from before these fields existed.
+  accountOwnerUserId: z.string().nullable().optional(),
+  accountOwnerName: z.string().nullable().optional(),
+  toAccountOwnerName: z.string().nullable().optional(),
+  // Cash leg of an investment buy/sell: the ledger row it settles. Decimal
+  // fields are strings; `fee` includes tax. Null/absent for every other row.
+  investment: z
+    .object({
+      id: z.string().uuid(),
+      ticker: z.string(),
+      name: z.string(),
+      side: z.enum(["buy", "sell"]),
+      quantity: z.string(),
+      unitPrice: z.string(),
+      gross: z.string(),
+      fee: z.string(),
+      net: z.string(),
+      currency: z.string(),
+    })
+    .nullable()
+    .optional(),
 });
 export type TransactionDto = z.infer<typeof TransactionDtoSchema>;
 

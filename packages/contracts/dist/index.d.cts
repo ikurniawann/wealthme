@@ -631,6 +631,43 @@ declare const TransactionDtoSchema: z.ZodObject<{
     occurredAt: z.ZodString;
     createdAt: z.ZodString;
     canModify: z.ZodBoolean;
+    accountOwnerUserId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    accountOwnerName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    toAccountOwnerName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    investment: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        id: z.ZodString;
+        ticker: z.ZodString;
+        name: z.ZodString;
+        side: z.ZodEnum<["buy", "sell"]>;
+        quantity: z.ZodString;
+        unitPrice: z.ZodString;
+        gross: z.ZodString;
+        fee: z.ZodString;
+        net: z.ZodString;
+        currency: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        id: string;
+        name: string;
+        currency: string;
+        ticker: string;
+        side: "buy" | "sell";
+        quantity: string;
+        unitPrice: string;
+        gross: string;
+        fee: string;
+        net: string;
+    }, {
+        id: string;
+        name: string;
+        currency: string;
+        ticker: string;
+        side: "buy" | "sell";
+        quantity: string;
+        unitPrice: string;
+        gross: string;
+        fee: string;
+        net: string;
+    }>>>;
 }, "strip", z.ZodTypeAny, {
     type: "income" | "expense" | "transfer";
     id: string;
@@ -648,6 +685,21 @@ declare const TransactionDtoSchema: z.ZodObject<{
     accountName: string | null;
     toAccountName: string | null;
     canModify: boolean;
+    investment?: {
+        id: string;
+        name: string;
+        currency: string;
+        ticker: string;
+        side: "buy" | "sell";
+        quantity: string;
+        unitPrice: string;
+        gross: string;
+        fee: string;
+        net: string;
+    } | null | undefined;
+    accountOwnerUserId?: string | null | undefined;
+    accountOwnerName?: string | null | undefined;
+    toAccountOwnerName?: string | null | undefined;
 }, {
     type: "income" | "expense" | "transfer";
     id: string;
@@ -665,6 +717,21 @@ declare const TransactionDtoSchema: z.ZodObject<{
     accountName: string | null;
     toAccountName: string | null;
     canModify: boolean;
+    investment?: {
+        id: string;
+        name: string;
+        currency: string;
+        ticker: string;
+        side: "buy" | "sell";
+        quantity: string;
+        unitPrice: string;
+        gross: string;
+        fee: string;
+        net: string;
+    } | null | undefined;
+    accountOwnerUserId?: string | null | undefined;
+    accountOwnerName?: string | null | undefined;
+    toAccountOwnerName?: string | null | undefined;
 }>;
 type TransactionDto = z.infer<typeof TransactionDtoSchema>;
 declare const TransactionSummarySchema: z.ZodObject<{
@@ -717,6 +784,43 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         occurredAt: z.ZodString;
         createdAt: z.ZodString;
         canModify: z.ZodBoolean;
+        accountOwnerUserId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        accountOwnerName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        toAccountOwnerName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        investment: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            id: z.ZodString;
+            ticker: z.ZodString;
+            name: z.ZodString;
+            side: z.ZodEnum<["buy", "sell"]>;
+            quantity: z.ZodString;
+            unitPrice: z.ZodString;
+            gross: z.ZodString;
+            fee: z.ZodString;
+            net: z.ZodString;
+            currency: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            id: string;
+            name: string;
+            currency: string;
+            ticker: string;
+            side: "buy" | "sell";
+            quantity: string;
+            unitPrice: string;
+            gross: string;
+            fee: string;
+            net: string;
+        }, {
+            id: string;
+            name: string;
+            currency: string;
+            ticker: string;
+            side: "buy" | "sell";
+            quantity: string;
+            unitPrice: string;
+            gross: string;
+            fee: string;
+            net: string;
+        }>>>;
     }, "strip", z.ZodTypeAny, {
         type: "income" | "expense" | "transfer";
         id: string;
@@ -734,6 +838,21 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         accountName: string | null;
         toAccountName: string | null;
         canModify: boolean;
+        investment?: {
+            id: string;
+            name: string;
+            currency: string;
+            ticker: string;
+            side: "buy" | "sell";
+            quantity: string;
+            unitPrice: string;
+            gross: string;
+            fee: string;
+            net: string;
+        } | null | undefined;
+        accountOwnerUserId?: string | null | undefined;
+        accountOwnerName?: string | null | undefined;
+        toAccountOwnerName?: string | null | undefined;
     }, {
         type: "income" | "expense" | "transfer";
         id: string;
@@ -751,6 +870,21 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         accountName: string | null;
         toAccountName: string | null;
         canModify: boolean;
+        investment?: {
+            id: string;
+            name: string;
+            currency: string;
+            ticker: string;
+            side: "buy" | "sell";
+            quantity: string;
+            unitPrice: string;
+            gross: string;
+            fee: string;
+            net: string;
+        } | null | undefined;
+        accountOwnerUserId?: string | null | undefined;
+        accountOwnerName?: string | null | undefined;
+        toAccountOwnerName?: string | null | undefined;
     }>, "many">;
     meta: z.ZodObject<{
         total: z.ZodNumber;
@@ -814,6 +948,21 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         accountName: string | null;
         toAccountName: string | null;
         canModify: boolean;
+        investment?: {
+            id: string;
+            name: string;
+            currency: string;
+            ticker: string;
+            side: "buy" | "sell";
+            quantity: string;
+            unitPrice: string;
+            gross: string;
+            fee: string;
+            net: string;
+        } | null | undefined;
+        accountOwnerUserId?: string | null | undefined;
+        accountOwnerName?: string | null | undefined;
+        toAccountOwnerName?: string | null | undefined;
     }[];
     meta: {
         total: number;
@@ -847,6 +996,21 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         accountName: string | null;
         toAccountName: string | null;
         canModify: boolean;
+        investment?: {
+            id: string;
+            name: string;
+            currency: string;
+            ticker: string;
+            side: "buy" | "sell";
+            quantity: string;
+            unitPrice: string;
+            gross: string;
+            fee: string;
+            net: string;
+        } | null | undefined;
+        accountOwnerUserId?: string | null | undefined;
+        accountOwnerName?: string | null | undefined;
+        toAccountOwnerName?: string | null | undefined;
     }[];
     meta: {
         total: number;

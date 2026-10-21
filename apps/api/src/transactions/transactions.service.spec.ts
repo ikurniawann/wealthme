@@ -3600,3 +3600,49 @@ describe("TransactionsService.update/remove edit-rights enforcement (EPIC-036)",
     ).resolves.toBeDefined();
   });
 });
+
+describe("TransactionsService.toInvestmentLeg", () => {
+  const svc = Object.create(TransactionsService.prototype) as unknown as {
+    toInvestmentLeg: (leg: unknown) => unknown;
+  };
+  const dec = (v: string) => ({
+    toString: () => v,
+    plus: (o: { toString(): string }) => ({
+      toString: () => String(Number(v) + Number(o.toString())),
+    }),
+  });
+
+  it("maps a buy/sell ledger row, folding tax into fee", () => {
+    expect(
+      svc.toInvestmentLeg({
+        kind: "sell",
+        quantity: dec("0.01"),
+        pricePerUnit: dec("42000000"),
+        grossAmount: dec("420000"),
+        fee: dec("900"),
+        tax: dec("100"),
+        netAmount: dec("419000"),
+        currency: "IDR",
+        investment: { id: "inv-1", ticker: "ETH", name: "Ethereum" },
+      }),
+    ).toEqual({
+      id: "inv-1",
+      ticker: "ETH",
+      name: "Ethereum",
+      side: "sell",
+      quantity: "0.01",
+      unitPrice: "42000000",
+      gross: "420000",
+      fee: "1000",
+      net: "419000",
+      currency: "IDR",
+    });
+  });
+
+  it("returns null when there is no ledger row or it is not a buy/sell", () => {
+    expect(svc.toInvestmentLeg(undefined)).toBeNull();
+    expect(
+      svc.toInvestmentLeg({ kind: "dividend", investment: { id: "x" } }),
+    ).toBeNull();
+  });
+});

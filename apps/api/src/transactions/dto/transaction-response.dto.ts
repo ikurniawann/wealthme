@@ -81,6 +81,33 @@ export class TransactionResponseDto {
       "Whether the CURRENT viewer may PATCH/DELETE this row — its creator or the owner of a private account on either leg. Everyone else (including Master/Co-Master) is read-only; see transaction-edit-rights.util.ts.",
   })
   canModify!: boolean;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  accountOwnerUserId?: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  accountOwnerName?: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  toAccountOwnerName?: string | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description:
+      "For the cash leg of an investment buy/sell: the ledger row it settles. Decimal fields are strings; `fee` already includes tax.",
+  })
+  investment?: {
+    id: string;
+    ticker: string;
+    name: string;
+    side: "buy" | "sell";
+    quantity: string;
+    unitPrice: string;
+    gross: string;
+    fee: string;
+    net: string;
+    currency: string;
+  } | null;
 }
 
 // EPIC-023 Task D (D3/D9, US-FAM-14) — the honest "did NOT create a

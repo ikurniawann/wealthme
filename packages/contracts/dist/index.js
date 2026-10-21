@@ -838,7 +838,26 @@ var TransactionDtoSchema = z8.object({
   // the CURRENT viewer may PATCH/DELETE this row: its creator, or the owner
   // of a private account on either leg. Everyone else (incl. Master/
   // Co-Master) is read-only.
-  canModify: z8.boolean()
+  canModify: z8.boolean(),
+  // Owner of the account leg(s), for the "Pemilik" filter/column. Absent on
+  // responses from before these fields existed.
+  accountOwnerUserId: z8.string().nullable().optional(),
+  accountOwnerName: z8.string().nullable().optional(),
+  toAccountOwnerName: z8.string().nullable().optional(),
+  // Cash leg of an investment buy/sell: the ledger row it settles. Decimal
+  // fields are strings; `fee` includes tax. Null/absent for every other row.
+  investment: z8.object({
+    id: z8.string().uuid(),
+    ticker: z8.string(),
+    name: z8.string(),
+    side: z8.enum(["buy", "sell"]),
+    quantity: z8.string(),
+    unitPrice: z8.string(),
+    gross: z8.string(),
+    fee: z8.string(),
+    net: z8.string(),
+    currency: z8.string()
+  }).nullable().optional()
 });
 var TransactionSummarySchema = z8.object({
   totalIncome: z8.string(),
