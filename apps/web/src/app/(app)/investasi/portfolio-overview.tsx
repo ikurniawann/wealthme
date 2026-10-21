@@ -21,7 +21,7 @@ import type {
   PlatformAccountDto,
 } from "@wealthme/contracts";
 import type { PortfolioHistory } from "./portfolio-model";
-import { money } from "./portfolio-model";
+import { historyLabels, money } from "./portfolio-model";
 
 export interface PortfolioActivity extends InvestmentTransactionDto {
   holdingName: string;
@@ -61,7 +61,7 @@ export function PortfolioChart({
         </p>
       ) : (
         <TrendChart
-          categories={data!.points.map((p) => p.date)}
+          categories={historyLabels(data!.points)}
           series={[
             {
               name: c.assetValue,

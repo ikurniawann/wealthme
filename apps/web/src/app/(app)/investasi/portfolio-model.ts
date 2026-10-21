@@ -26,9 +26,21 @@ export const INITIAL_FILTERS: PortfolioFilters = {
   displayCurrency: "IDR",
 };
 export interface PortfolioHistory {
-  points: { date: string; valueIdr: string }[];
+  points: { date: string; at?: string; valueIdr: string }[];
   currency: string;
   historicalFxUnavailable: boolean;
+}
+/** Date labels; a day with several points gets its Jakarta clock time. */
+export function historyLabels(points: PortfolioHistory["points"]): string[] {
+  const perDay = new Map<string, number>();
+  for (const p of points) perDay.set(p.date, (perDay.get(p.date) ?? 0) + 1);
+  return points.map((p) => {
+    if ((perDay.get(p.date) ?? 0) < 2 || !p.at) return p.date;
+    const time = new Date(Date.parse(p.at) + 7 * 3_600_000)
+      .toISOString()
+      .slice(11, 16);
+    return `${p.date} ${time}`;
+  });
 }
 export type InvestmentAction = {
   kind: "add" | "topup" | "price" | "buy" | "sell";

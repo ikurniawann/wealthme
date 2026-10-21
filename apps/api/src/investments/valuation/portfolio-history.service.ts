@@ -57,6 +57,29 @@ export class PortfolioHistoryService {
     ]);
     const now = new Date();
     const instant = (p: (typeof prices)[number]) => p.asOf ?? p.recordedAt;
+    const txInstant = (t: (typeof transactions)[number]) =>
+      ledgerInstant(dbDateToYmd(t.effectiveDate), t.effectiveTime, t.timeZone);
+    // A buy/sell/opening executes at a real price: treat it as an observed
+    // quote at its own instant so holdings without stored quotes still plot.
+    for (const t of transactions) {
+      if (t.kind !== "buy" && t.kind !== "sell" && t.kind !== "opening")
+        continue;
+      if (!t.pricePerUnit.greaterThan(0)) continue;
+      const when = txInstant(t);
+      prices.push({
+        id: `tx:${t.id}`,
+        investmentId: t.investmentId,
+        price: t.pricePerUnit,
+        source: "transaction",
+        asOf: when,
+        delayed: false,
+        recordedAt: when,
+        currency: t.currency,
+        unitLabel: null,
+        reference: null,
+        hasTime: t.effectiveTime !== null,
+      } as (typeof prices)[number]);
+    }
     const pricesByHolding = new Map<string, typeof prices>();
     const transactionsByHolding = new Map<string, typeof transactions>();
     for (const price of prices) {
@@ -76,20 +99,33 @@ export class PortfolioHistoryService {
       list.push(row);
       transactionsByHolding.set(row.investmentId, list);
     }
-    const dates = [
+    const dayEnds = [
       ...new Set(
         prices
-          .filter((p) => instant(p) <= now)
+          .filter((p) => instant(p) <= now && p.source !== "transaction")
           .map((p) => jakartaYmd(instant(p))),
       ),
     ]
       .sort()
-      .slice(-365);
+      .slice(-365)
+      .map((d) => {
+        const end = new Date(`${d}T23:59:59.999+07:00`);
+        return end > now ? now : end;
+      });
+    const instants = [
+      ...new Set(
+        [
+          ...dayEnds,
+          ...transactions.map(txInstant).filter((d) => d <= now),
+          now,
+        ].map((d) => d.getTime()),
+      ),
+    ].sort((a, b) => a - b);
     let historicalFxUnavailable = false;
-    const points: { date: string; valueIdr: string }[] = [];
-    for (const date of dates) {
-      const end = new Date(`${date}T23:59:59.999+07:00`);
-      const at = end > now ? now : end;
+    const points: { date: string; at: string; valueIdr: string }[] = [];
+    for (const ms of instants) {
+      const at = new Date(ms);
+      const date = jakartaYmd(at);
       let total = new Prisma.Decimal(0);
       let complete = true;
       let hasPosition = false;
@@ -146,7 +182,11 @@ export class PortfolioHistoryService {
         total = total.plus(value.marketValueIdr);
       }
       if (complete && hasPosition)
-        points.push({ date, valueIdr: total.toDecimalPlaces(2).toString() });
+        points.push({
+          date,
+          at: at.toISOString(),
+          valueIdr: total.toDecimalPlaces(2).toString(),
+        });
     }
     return { points, currency: "IDR", historicalFxUnavailable };
   }
