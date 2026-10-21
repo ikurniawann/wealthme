@@ -873,7 +873,7 @@
     font-size: var(--wm-type-14);
   }
   .txd-hero-r {
-    text-align: right;
+    text-align: left;
   }
   .txd-hero-r small {
     display: block;
