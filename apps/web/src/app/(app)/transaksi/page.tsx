@@ -90,6 +90,14 @@ import {
 import { getActiveTransactionFilterCount } from "./filter-count";
 import { TxMobileHead } from "./mobile-head";
 import { localIsoDate } from "@/lib/local-date";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import {
+  DesktopView,
+  currentMonth,
+  monthBounds,
+  type DeskFilter,
+} from "./desktop-view";
+import { isInvestmentTx } from "./investment-row";
 import { apiErrorMessage as extractApiErrorMessage } from "@/lib/api-error";
 
 // EPIC-024 Task L3 (D15, US-TXN-9) — page-local helper, same convention as
@@ -183,7 +191,7 @@ type TxnType = "income" | "expense" | "transfer" | "all";
 /**
  * Extended filter value: standard TxnType values plus "kartu_kredit".
  */
-type FilterValue = TxnType | "kartu_kredit";
+type FilterValue = TxnType | "kartu_kredit" | "investasi";
 
 type SortOrder = "newest" | "oldest";
 
@@ -199,7 +207,7 @@ type MeResponse = {
 // liability type (KPR, pinjaman pribadi, ...).
 type LiabilityFilterDto = { id: string; type: string };
 
-const FILTER_VALUES: FilterValue[] = [
+const FILTER_VALUES: Exclude<FilterValue, "investasi">[] = [
   "all",
   "income",
   "expense",
@@ -272,6 +280,7 @@ function formatShortDate(dateStr: string, locale: Locale): string {
  * only when a real date-range filter (`summary.period.from`) is active. */
 
 const PAGE_SIZE = 10;
+const DESK_PAGE_SIZE = 25;
 
 /** Server page size when collecting the full list. 100 is the API's own
  *  `@Max(100)` ceiling, so this is the fewest round trips it allows. */
@@ -1478,6 +1487,22 @@ function TransaksiPageInner() {
     readIsoDayParam(searchParams.get("to")),
   );
   const [page, setPage] = useState(1);
+  // Tablet/desktop (>=721px) renders the table layout; phones keep the
+  // shipped layout below.
+  const isDesktop = useMediaQuery("(min-width: 721px)");
+  const [deskPageSize, setDeskPageSize] = useState(DESK_PAGE_SIZE);
+  // The desktop KPI strip is per month: open on the current month unless a
+  // deep link already chose a range. Applied once, while rendering (React's
+  // "adjust state on change" pattern); Reset returns to all time.
+  const [defaultedMonth, setDefaultedMonth] = useState(false);
+  if (isDesktop && !defaultedMonth) {
+    setDefaultedMonth(true);
+    if (!searchParams.get("from") && !searchParams.get("to")) {
+      const b = monthBounds(currentMonth());
+      setDateFrom(b.from);
+      setDateTo(b.to);
+    }
+  }
   const [query, setQuery] = useState("");
   const [[todayIso, yesterdayIso]] = useState(() => [
     localIsoDate(),
@@ -1710,7 +1735,13 @@ function TransaksiPageInner() {
       ? transactions
       : filter === "kartu_kredit"
         ? transactions.filter((tx) => isCreditCard(tx, creditCardLiabilityIds))
-        : transactions.filter((tx) => tx.type === filter);
+        : filter === "investasi"
+          ? transactions.filter(isInvestmentTx)
+          : filter === "transfer"
+            ? transactions.filter(
+                (tx) => tx.type === "transfer" && !isInvestmentTx(tx),
+              )
+            : transactions.filter((tx) => tx.type === filter);
 
   // Sort by occurredAt — affects both day-group order and within-day row
   // order. occurredAt is date-only (no time picker in the add-transaction
@@ -1762,11 +1793,12 @@ function TransaksiPageInner() {
           .some((field) => field!.toLowerCase().includes(needle)),
       )
     : sorted;
-  const visiblePages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  const pageSize = isDesktop ? deskPageSize : PAGE_SIZE;
+  const visiblePages = Math.max(1, Math.ceil(visible.length / pageSize));
   const visiblePage = Math.min(page, visiblePages);
   const visibleRows = visible.slice(
-    (visiblePage - 1) * PAGE_SIZE,
-    visiblePage * PAGE_SIZE,
+    (visiblePage - 1) * pageSize,
+    visiblePage * pageSize,
   );
   const flow = bucketFlow(filtered, dateFrom, dateTo, locale);
   const periodLabel =
@@ -1845,346 +1877,469 @@ function TransaksiPageInner() {
         ? v2.yesterday
         : formatFullDate(day, locale);
 
+  const chart =
+    flow.labels.length > 0 ? (
+      <HatchedBarChart
+        labels={flow.labels}
+        series={[
+          {
+            name: t.transaksi.totalIncomeLabel,
+            data: flow.income,
+            color: "var(--wm-lime)",
+          },
+          {
+            name: t.transaksi.totalExpenseLabel,
+            data: flow.expense,
+            color: EXPENSE_COLOR,
+          },
+        ]}
+        highlight={flow.peak}
+        format={money.formatCompact}
+        formatFull={money.format}
+        axis={money.formatAxis}
+        ariaLabel={v2.chartAria}
+      />
+    ) : null;
+
   return (
     <div className="flex flex-col gap-4">
-      <TxMobileHead
-        filter={filter}
-        onFilter={handleMobileFilter}
-        query={query}
-        onQuery={handleMobileQuery}
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        onRange={handleMobileRange}
-        hasDeepLink={Boolean(
-          accountId ||
-          coaFilter ||
-          openTxId ||
-          searchParams.get("from") ||
-          searchParams.get("to"),
-        )}
-        expense={isLoading ? "…" : money.format(totalExpense)}
-        income={isLoading ? "…" : money.format(totalIncome)}
-        onExport={exportCsv}
-        exportLabel={v2.exportCsv}
-        filtersOpen={mobileFiltersOpen}
-        onToggleFilters={() => setMobileFiltersOpen((open) => !open)}
-        activeFilterCount={getActiveTransactionFilterCount({
-          // The month pill and the Semua/Pengeluaran tabs already show these.
-          hasDateRange: false,
-          hasAccount: Boolean(accountId),
-          hasCategory: Boolean(categoryFilter || coaFilter),
-          hasType: filter !== "all" && filter !== "expense",
-          hasSort: sortOrder !== "newest",
-        })}
-      />
-      <BentoGrid className="tx-grid">
-        <BentoHero
-          collapse={false}
-          className={cn("tx-hero", heroMore && "tx-hero--more")}
-          currency={
-            isLoading ? null : splitCurrency(money.format(netBalance)).prefix
+      {isDesktop ? (
+        <DesktopView
+          isLoading={isLoading}
+          isError={isError}
+          income={totalIncome}
+          expense={totalExpense}
+          net={netBalance}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onRange={(from, to) => {
+            setDateFrom(from);
+            setDateTo(to);
+            setPage(1);
+          }}
+          query={query}
+          onQuery={(value) => {
+            setQuery(value);
+            setPage(1);
+          }}
+          filter={filter as DeskFilter}
+          onFilter={(value) => {
+            setFilter(value);
+            setPage(1);
+          }}
+          accounts={filterAccounts}
+          accountId={accountId ?? ""}
+          onAccount={(value) => {
+            setPage(1);
+            router.replace(
+              value
+                ? `/transaksi?accountId=${encodeURIComponent(value)}`
+                : "/transaksi",
+            );
+          }}
+          categories={filterCategories}
+          categoryId={categoryFilter}
+          onCategory={(value) => {
+            setCategoryFilter(value);
+            setPage(1);
+          }}
+          sortOrder={sortOrder}
+          onSort={(value) => {
+            setSortOrder(value);
+            setPage(1);
+          }}
+          onReset={() => {
+            handleResetFilters();
+            setQuery("");
+          }}
+          activeFilterCount={
+            activeFilterCount - (dateFrom || dateTo ? 1 : 0) + (needle ? 1 : 0)
           }
-          value={
-            isLoading ? "…" : splitCurrency(money.format(netBalance)).amount
+          onExport={exportCsv}
+          onRecord={() => setTxnOpen(true)}
+          trend={chart}
+          rows={visibleRows}
+          total={visible.length}
+          page={visiblePage}
+          pages={visiblePages}
+          onPage={setPage}
+          pageSize={deskPageSize}
+          onPageSize={(size) => {
+            setDeskPageSize(size);
+            setPage(1);
+          }}
+          truncatedNote={
+            truncated
+              ? t.transaksi.listTruncatedNote
+                  .replace("{shown}", String(fetchedTransactions.length))
+                  .replace("{total}", String(data?.meta?.total ?? 0))
+              : null
           }
-          caption={`${netBalance >= 0 ? v2.surplus : v2.deficit} · ${periodLabel}`}
-          controls={
-            <>
-              <GhostButton onClick={exportCsv}>{v2.exportCsv}</GhostButton>
-              <GhostButton onClick={() => setTxnOpen(true)}>
-                <Plus aria-hidden="true" /> {v2.record}
-              </GhostButton>
-            </>
-          }
-          chart={
-            flow.labels.length > 0 ? (
-              <HatchedBarChart
-                labels={flow.labels}
-                series={[
-                  {
-                    name: t.transaksi.totalIncomeLabel,
-                    data: flow.income,
-                    color: "var(--wm-lime)",
-                  },
-                  {
-                    name: t.transaksi.totalExpenseLabel,
-                    data: flow.expense,
-                    color: EXPENSE_COLOR,
-                  },
-                ]}
-                highlight={flow.peak}
-                format={money.formatCompact}
-                axis={money.formatAxis}
-                formatFull={money.format}
-                ariaLabel={v2.chartAria}
-              />
-            ) : null
-          }
-          kpis={
-            <>
-              <HeroKpi
-                label={t.transaksi.totalIncomeLabel}
-                value={isLoading ? "…" : money.format(totalIncome)}
-                delta={<small className="wm-cap">{incomeSubtext}</small>}
-              />
-              <HeroKpi
-                label={t.transaksi.totalExpenseLabel}
-                value={isLoading ? "…" : money.format(totalExpense)}
-                delta={<small className="wm-cap">{expenseSubtext}</small>}
-              />
-              <HeroKpi
-                label={v2.txCount}
-                value={isLoading ? "…" : String(visible.length)}
-                delta={
-                  !isLoading && transactions.length > 0 ? (
-                    <small className="wm-cap">{`${categorizedPct}${t.transaksi.insightCategorizedValueSuffix}`}</small>
-                  ) : undefined
-                }
-              />
-              <button
-                type="button"
-                className="tx-hero-more"
-                aria-expanded={heroMore}
-                onClick={() => setHeroMore((open) => !open)}
-              >
-                {heroMore ? v2.heroLess : v2.heroMore}
-                <ChevronDown aria-hidden="true" />
-              </button>
-            </>
-          }
+          fullDate={(day) => formatFullDate(day, locale)}
+          DetailDialog={(detail) => (
+            <TransactionDetailDialog
+              {...detail}
+              familyGroupId={familyGroupId}
+              token={token}
+            />
+          )}
+          onEdit={(tx) => setEditTarget(tx)}
+          onDelete={(id) => setDeleteTarget(id)}
         />
-
-        <div className="tx-filters-wrap">
-          <button
-            type="button"
-            aria-controls="transaction-filters"
-            aria-expanded={mobileFiltersOpen}
-            onClick={() => setMobileFiltersOpen((open) => !open)}
-            className="tx-filters-toggle"
-          >
-            <Filter className="size-4" aria-hidden="true" />
-            {v2.filtersToggle.replace(
-              "{count}",
-              String(activeFilterCount + (needle ? 1 : 0)),
+      ) : (
+        <>
+          <TxMobileHead
+            filter={filter}
+            onFilter={handleMobileFilter}
+            query={query}
+            onQuery={handleMobileQuery}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onRange={handleMobileRange}
+            hasDeepLink={Boolean(
+              accountId ||
+              coaFilter ||
+              openTxId ||
+              searchParams.get("from") ||
+              searchParams.get("to"),
             )}
-          </button>
-          <BentoCard
-            className="tx-filters"
-            title={v2.filterTitle}
-            action={
+            expense={isLoading ? "…" : money.format(totalExpense)}
+            income={isLoading ? "…" : money.format(totalIncome)}
+            onExport={exportCsv}
+            exportLabel={v2.exportCsv}
+            filtersOpen={mobileFiltersOpen}
+            onToggleFilters={() => setMobileFiltersOpen((open) => !open)}
+            activeFilterCount={getActiveTransactionFilterCount({
+              // The month pill and the Semua/Pengeluaran tabs already show these.
+              hasDateRange: false,
+              hasAccount: Boolean(accountId),
+              hasCategory: Boolean(categoryFilter || coaFilter),
+              hasType: filter !== "all" && filter !== "expense",
+              hasSort: sortOrder !== "newest",
+            })}
+          />
+          <BentoGrid className="tx-grid">
+            <BentoHero
+              collapse={false}
+              className={cn("tx-hero", heroMore && "tx-hero--more")}
+              currency={
+                isLoading
+                  ? null
+                  : splitCurrency(money.format(netBalance)).prefix
+              }
+              value={
+                isLoading ? "…" : splitCurrency(money.format(netBalance)).amount
+              }
+              caption={`${netBalance >= 0 ? v2.surplus : v2.deficit} · ${periodLabel}`}
+              controls={
+                <>
+                  <GhostButton onClick={exportCsv}>{v2.exportCsv}</GhostButton>
+                  <GhostButton onClick={() => setTxnOpen(true)}>
+                    <Plus aria-hidden="true" /> {v2.record}
+                  </GhostButton>
+                </>
+              }
+              chart={
+                flow.labels.length > 0 ? (
+                  <HatchedBarChart
+                    labels={flow.labels}
+                    series={[
+                      {
+                        name: t.transaksi.totalIncomeLabel,
+                        data: flow.income,
+                        color: "var(--wm-lime)",
+                      },
+                      {
+                        name: t.transaksi.totalExpenseLabel,
+                        data: flow.expense,
+                        color: EXPENSE_COLOR,
+                      },
+                    ]}
+                    highlight={flow.peak}
+                    format={money.formatCompact}
+                    axis={money.formatAxis}
+                    formatFull={money.format}
+                    ariaLabel={v2.chartAria}
+                  />
+                ) : null
+              }
+              kpis={
+                <>
+                  <HeroKpi
+                    label={t.transaksi.totalIncomeLabel}
+                    value={isLoading ? "…" : money.format(totalIncome)}
+                    delta={<small className="wm-cap">{incomeSubtext}</small>}
+                  />
+                  <HeroKpi
+                    label={t.transaksi.totalExpenseLabel}
+                    value={isLoading ? "…" : money.format(totalExpense)}
+                    delta={<small className="wm-cap">{expenseSubtext}</small>}
+                  />
+                  <HeroKpi
+                    label={v2.txCount}
+                    value={isLoading ? "…" : String(visible.length)}
+                    delta={
+                      !isLoading && transactions.length > 0 ? (
+                        <small className="wm-cap">{`${categorizedPct}${t.transaksi.insightCategorizedValueSuffix}`}</small>
+                      ) : undefined
+                    }
+                  />
+                  <button
+                    type="button"
+                    className="tx-hero-more"
+                    aria-expanded={heroMore}
+                    onClick={() => setHeroMore((open) => !open)}
+                  >
+                    {heroMore ? v2.heroLess : v2.heroMore}
+                    <ChevronDown aria-hidden="true" />
+                  </button>
+                </>
+              }
+            />
+
+            <div className="tx-filters-wrap">
               <button
                 type="button"
-                className="tx-reset"
-                onClick={() => {
-                  handleResetFilters();
-                  setQuery("");
-                }}
+                aria-controls="transaction-filters"
+                aria-expanded={mobileFiltersOpen}
+                onClick={() => setMobileFiltersOpen((open) => !open)}
+                className="tx-filters-toggle"
               >
-                {v2.reset}
+                <Filter className="size-4" aria-hidden="true" />
+                {v2.filtersToggle.replace(
+                  "{count}",
+                  String(activeFilterCount + (needle ? 1 : 0)),
+                )}
               </button>
-            }
-          >
-            <div
-              id="transaction-filters"
-              className="tx-filter-body"
-              data-open={mobileFiltersOpen || undefined}
-            >
-              <label className="tx-search">
-                <Search className="size-4 shrink-0" aria-hidden="true" />
-                <input
-                  type="search"
-                  value={query}
-                  onChange={(e) => {
-                    setQuery(e.target.value);
-                    setPage(1);
-                  }}
-                  placeholder={v2.searchPlaceholder}
-                  aria-label={v2.searchPlaceholder}
-                />
-              </label>
-              <div className="tx-types" role="group" aria-label={v2.typeAria}>
-                {FILTER_VALUES.map((value) => (
+              <BentoCard
+                className="tx-filters"
+                title={v2.filterTitle}
+                action={
                   <button
-                    key={value}
                     type="button"
-                    aria-pressed={filter === value}
+                    className="tx-reset"
                     onClick={() => {
-                      setFilter(value);
-                      setPage(1);
+                      handleResetFilters();
+                      setQuery("");
                     }}
                   >
-                    {t.transaksi.filterLabels[value]}
+                    {v2.reset}
                   </button>
-                ))}
-              </div>
-              <DateRangeFilterField
-                from={dateFrom}
-                to={dateTo}
-                locale={locale}
-                label={t.transaksi.dateRangeLabel}
-                cancelLabel={locale === "en" ? "Cancel" : "Batal"}
-                applyLabel={locale === "en" ? "Apply" : "Terapkan"}
-                onApply={(nextFrom, nextTo) => {
-                  setDateFrom(nextFrom);
-                  setDateTo(nextTo);
-                  setPage(1);
-                }}
-              />
-              <label className="tx-field">
-                <span>{t.transaksi.accountFilterFieldLabel}</span>
-                <select
-                  value={accountId ?? ""}
-                  onChange={handleAccountFilterChange}
-                  className="select"
-                >
-                  <option value="">{t.transaksi.allAccountsOption}</option>
-                  {filterAccounts?.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="tx-field">
-                <span>{t.transaksi.categoryFilterFieldLabel}</span>
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => {
-                    setCategoryFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  className="select"
-                >
-                  <option value="">{t.transaksi.allCategoriesOption}</option>
-                  {filterCategories?.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="tx-field">
-                <span>{t.transaksi.sortByLabel}</span>
-                <select
-                  value={sortOrder}
-                  onChange={(e) => {
-                    setSortOrder(e.target.value as SortOrder);
-                    setPage(1);
-                  }}
-                  className="select"
-                  aria-label={t.transaksi.sortAriaLabel}
-                >
-                  {SORT_VALUES.map((value) => (
-                    <option key={value} value={value}>
-                      {t.transaksi.sortLabels[value]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {filterAccountName && (
-                <button
-                  type="button"
-                  onClick={() => router.replace("/transaksi")}
-                  className="wm-chip"
-                  aria-pressed="true"
-                  aria-label={`${t.transaksi.removeAccountFilterAriaLabelPrefix}${filterAccountName}`}
-                >
-                  {t.transaksi.accountFilterPrefix}
-                  {filterAccountName}
-                  {t.transaksi.accountFilterSuffix}
-                </button>
-              )}
-            </div>
-          </BentoCard>
-        </div>
-
-        <BentoCard
-          className="tx-history"
-          title={v2.history}
-          action={
-            !isLoading ? (
-              <span className="wm-cap">{`${visible.length}${t.transaksi.transactionsCountSuffix}`}</span>
-            ) : undefined
-          }
-        >
-          {isError && (
-            <div role="alert" className="tx-note" data-tone="bad">
-              {t.transaksi.errorLoad}
-            </div>
-          )}
-          {isLoading && (
-            <p className="wm-cap py-6 text-center">
-              {t.transaksi.loadingLabel}
-            </p>
-          )}
-          {truncated && (
-            <div className="tx-note" data-tone="warn">
-              {t.transaksi.listTruncatedNote
-                .replace("{shown}", String(fetchedTransactions.length))
-                .replace("{total}", String(data?.meta?.total ?? 0))}
-            </div>
-          )}
-          {!isLoading &&
-            groups.map((group) => (
-              <section
-                key={group.day}
-                className="tx-day"
-                aria-label={dayLabel(group.day)}
+                }
               >
-                <header>
-                  <span>{dayLabel(group.day)}</span>
-                  <span className={"wm-num " + (group.net > 0 ? "wm-pos" : "")}>
-                    {withSign(
-                      money.format(Math.abs(group.net)),
-                      group.net > 0 ? "+" : group.net < 0 ? "-" : "",
-                    )}
-                  </span>
-                </header>
-                {group.rows.map((tx) => (
-                  <HistoryRow
-                    key={tx.id}
-                    tx={tx}
-                    familyGroupId={familyGroupId}
-                    token={token}
-                    onDeleteClick={() => setDeleteTarget(tx.id)}
-                    onEditClick={() => setEditTarget(tx)}
-                    defaultOpen={tx.id === openTxId}
+                <div
+                  id="transaction-filters"
+                  className="tx-filter-body"
+                  data-open={mobileFiltersOpen || undefined}
+                >
+                  <label className="tx-search">
+                    <Search className="size-4 shrink-0" aria-hidden="true" />
+                    <input
+                      type="search"
+                      value={query}
+                      onChange={(e) => {
+                        setQuery(e.target.value);
+                        setPage(1);
+                      }}
+                      placeholder={v2.searchPlaceholder}
+                      aria-label={v2.searchPlaceholder}
+                    />
+                  </label>
+                  <div
+                    className="tx-types"
+                    role="group"
+                    aria-label={v2.typeAria}
+                  >
+                    {FILTER_VALUES.map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-pressed={filter === value}
+                        onClick={() => {
+                          setFilter(value);
+                          setPage(1);
+                        }}
+                      >
+                        {t.transaksi.filterLabels[value]}
+                      </button>
+                    ))}
+                  </div>
+                  <DateRangeFilterField
+                    from={dateFrom}
+                    to={dateTo}
+                    locale={locale}
+                    label={t.transaksi.dateRangeLabel}
+                    cancelLabel={locale === "en" ? "Cancel" : "Batal"}
+                    applyLabel={locale === "en" ? "Apply" : "Terapkan"}
+                    onApply={(nextFrom, nextTo) => {
+                      setDateFrom(nextFrom);
+                      setDateTo(nextTo);
+                      setPage(1);
+                    }}
                   />
+                  <label className="tx-field">
+                    <span>{t.transaksi.accountFilterFieldLabel}</span>
+                    <select
+                      value={accountId ?? ""}
+                      onChange={handleAccountFilterChange}
+                      className="select"
+                    >
+                      <option value="">{t.transaksi.allAccountsOption}</option>
+                      {filterAccounts?.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="tx-field">
+                    <span>{t.transaksi.categoryFilterFieldLabel}</span>
+                    <select
+                      value={categoryFilter}
+                      onChange={(e) => {
+                        setCategoryFilter(e.target.value);
+                        setPage(1);
+                      }}
+                      className="select"
+                    >
+                      <option value="">
+                        {t.transaksi.allCategoriesOption}
+                      </option>
+                      {filterCategories?.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="tx-field">
+                    <span>{t.transaksi.sortByLabel}</span>
+                    <select
+                      value={sortOrder}
+                      onChange={(e) => {
+                        setSortOrder(e.target.value as SortOrder);
+                        setPage(1);
+                      }}
+                      className="select"
+                      aria-label={t.transaksi.sortAriaLabel}
+                    >
+                      {SORT_VALUES.map((value) => (
+                        <option key={value} value={value}>
+                          {t.transaksi.sortLabels[value]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {filterAccountName && (
+                    <button
+                      type="button"
+                      onClick={() => router.replace("/transaksi")}
+                      className="wm-chip"
+                      aria-pressed="true"
+                      aria-label={`${t.transaksi.removeAccountFilterAriaLabelPrefix}${filterAccountName}`}
+                    >
+                      {t.transaksi.accountFilterPrefix}
+                      {filterAccountName}
+                      {t.transaksi.accountFilterSuffix}
+                    </button>
+                  )}
+                </div>
+              </BentoCard>
+            </div>
+
+            <BentoCard
+              className="tx-history"
+              title={v2.history}
+              action={
+                !isLoading ? (
+                  <span className="wm-cap">{`${visible.length}${t.transaksi.transactionsCountSuffix}`}</span>
+                ) : undefined
+              }
+            >
+              {isError && (
+                <div role="alert" className="tx-note" data-tone="bad">
+                  {t.transaksi.errorLoad}
+                </div>
+              )}
+              {isLoading && (
+                <p className="wm-cap py-6 text-center">
+                  {t.transaksi.loadingLabel}
+                </p>
+              )}
+              {truncated && (
+                <div className="tx-note" data-tone="warn">
+                  {t.transaksi.listTruncatedNote
+                    .replace("{shown}", String(fetchedTransactions.length))
+                    .replace("{total}", String(data?.meta?.total ?? 0))}
+                </div>
+              )}
+              {!isLoading &&
+                groups.map((group) => (
+                  <section
+                    key={group.day}
+                    className="tx-day"
+                    aria-label={dayLabel(group.day)}
+                  >
+                    <header>
+                      <span>{dayLabel(group.day)}</span>
+                      <span
+                        className={"wm-num " + (group.net > 0 ? "wm-pos" : "")}
+                      >
+                        {withSign(
+                          money.format(Math.abs(group.net)),
+                          group.net > 0 ? "+" : group.net < 0 ? "-" : "",
+                        )}
+                      </span>
+                    </header>
+                    {group.rows.map((tx) => (
+                      <HistoryRow
+                        key={tx.id}
+                        tx={tx}
+                        familyGroupId={familyGroupId}
+                        token={token}
+                        onDeleteClick={() => setDeleteTarget(tx.id)}
+                        onEditClick={() => setEditTarget(tx)}
+                        defaultOpen={tx.id === openTxId}
+                      />
+                    ))}
+                  </section>
                 ))}
-              </section>
-            ))}
-          {!isLoading && visible.length === 0 && !isError && (
-            <p className="wm-cap py-6 text-center">
-              {t.transaksi.emptyFiltered}
-            </p>
-          )}
-          {!isLoading && visible.length > 0 && (
-            <footer className="tx-pager">
-              <span className="wm-cap">
-                {t.transaksi.paginationShowingLabel}
-                {visibleRows.length}
-                {t.transaksi.paginationOfMid}
-                {visible.length}
-                {t.transaksi.transactionsCountSuffix}
-              </span>
-              <div>
-                <PillButton
-                  disabled={visiblePage <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                  {t.transaksi.paginationPrevButton}
-                </PillButton>
-                <PillButton
-                  disabled={visiblePage >= visiblePages}
-                  onClick={() => setPage((p) => Math.min(visiblePages, p + 1))}
-                >
-                  {t.transaksi.paginationNextButton}
-                </PillButton>
-              </div>
-            </footer>
-          )}
-        </BentoCard>
-      </BentoGrid>
+              {!isLoading && visible.length === 0 && !isError && (
+                <p className="wm-cap py-6 text-center">
+                  {t.transaksi.emptyFiltered}
+                </p>
+              )}
+              {!isLoading && visible.length > 0 && (
+                <footer className="tx-pager">
+                  <span className="wm-cap">
+                    {t.transaksi.paginationShowingLabel}
+                    {visibleRows.length}
+                    {t.transaksi.paginationOfMid}
+                    {visible.length}
+                    {t.transaksi.transactionsCountSuffix}
+                  </span>
+                  <div>
+                    <PillButton
+                      disabled={visiblePage <= 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    >
+                      {t.transaksi.paginationPrevButton}
+                    </PillButton>
+                    <PillButton
+                      disabled={visiblePage >= visiblePages}
+                      onClick={() =>
+                        setPage((p) => Math.min(visiblePages, p + 1))
+                      }
+                    >
+                      {t.transaksi.paginationNextButton}
+                    </PillButton>
+                  </div>
+                </footer>
+              )}
+            </BentoCard>
+          </BentoGrid>
+        </>
+      )}
 
       <EditTransactionDialog
         key={editTarget?.id ?? "edit-none"}
