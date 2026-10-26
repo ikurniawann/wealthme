@@ -16,22 +16,43 @@ const LIVE: ProviderRates = {
     JPY: "113.674012",
     AUD: "12593.847102",
     CNY: "2668.445873",
+    GBP: "23724.274100",
+    HKD: "2277.898551",
+    MYR: "4101.851406",
+    THB: "536.146194",
+    PHP: "310.916590",
+    KRW: "13.077705",
+    INR: "213.674059",
   },
 };
-const T0 = Date.parse("2026-09-26T03:00:00.000Z");
+const T0 = Date.parse("2026-10-26T03:00:00.000Z");
 const HOUR = 60 * 60 * 1000;
 
 function storedRows(rateDate: string, fetchedAt: number) {
-  return (["USD", "SGD", "EUR", "JPY", "AUD", "CNY"] as const).map(
-    (currency) => ({
-      id: `r-${currency}`,
-      source: "frankfurter",
-      currency,
-      rateDate: new Date(`${rateDate}T00:00:00.000Z`),
-      idrPerUnit: new Prisma.Decimal(LIVE.idrPerUnit[currency]),
-      fetchedAt: new Date(fetchedAt),
-    }),
-  );
+  return (
+    [
+      "USD",
+      "SGD",
+      "EUR",
+      "JPY",
+      "AUD",
+      "CNY",
+      "GBP",
+      "HKD",
+      "MYR",
+      "THB",
+      "PHP",
+      "KRW",
+      "INR",
+    ] as const
+  ).map((currency) => ({
+    id: `r-${currency}`,
+    source: "frankfurter",
+    currency,
+    rateDate: new Date(`${rateDate}T00:00:00.000Z`),
+    idrPerUnit: new Prisma.Decimal(LIVE.idrPerUnit[currency]),
+    fetchedAt: new Date(fetchedAt),
+  }));
 }
 
 function build(opts: {
@@ -78,7 +99,7 @@ describe("FrankfurterFxService — revisi I", () => {
     const { service, prisma, client } = build({});
     const snap = await service.getSnapshot();
     expect(client.fetchLatest).toHaveBeenCalledTimes(1);
-    expect(prisma.fxRate.upsert).toHaveBeenCalledTimes(6);
+    expect(prisma.fxRate.upsert).toHaveBeenCalledTimes(13);
     expect(prisma.fxRate.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {

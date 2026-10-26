@@ -133,7 +133,7 @@ describe("MoneyInput — revisi I", () => {
   });
 
   it("an unsupported profile currency falls back to IDR", () => {
-    mockPref.mockReturnValue({ ...USD_PREF, currency: "GBP" });
+    mockPref.mockReturnValue({ ...USD_PREF, currency: "ZZZ" });
     render(<Harness />);
     expect(screen.getByRole("button", { name: "Mata uang" })).toHaveTextContent(
       "IDR",

@@ -3,6 +3,7 @@ import "reflect-metadata";
 import request from "supertest";
 
 import { createFxTestApp, FG, fxTesting } from "../../test/fx-testing";
+import { AccountReconcileService } from "../accounts/account-reconcile.service";
 import { AccountsController } from "../accounts/accounts.controller";
 import { AccountsService } from "../accounts/accounts.service";
 import { AllowanceRequestsController } from "../allowance-requests/allowance-requests.controller";
@@ -38,6 +39,7 @@ describe("fx wiring — ledger routes (revisi I)", () => {
       ],
       providers: [
         { provide: AccountsService, useValue: accounts },
+        { provide: AccountReconcileService, useValue: {} },
         { provide: TransactionsService, useValue: transactions },
         { provide: BudgetsService, useValue: budgets },
         { provide: GoalsService, useValue: goals },

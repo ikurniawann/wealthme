@@ -10,7 +10,7 @@ import { id } from "@/i18n/id";
 import { CURRENCIES, FOREIGN_CURRENCIES } from "./currencies";
 
 describe("CURRENCIES", () => {
-  it("lists the 7 codes the FX table serves, IDR first", () => {
+  it("lists all supported codes from the FX table, IDR first", () => {
     expect(CURRENCIES.map((c) => c.code)).toEqual([
       "IDR",
       "USD",
@@ -19,6 +19,13 @@ describe("CURRENCIES", () => {
       "JPY",
       "AUD",
       "CNY",
+      "GBP",
+      "HKD",
+      "MYR",
+      "THB",
+      "PHP",
+      "KRW",
+      "INR",
     ]);
   });
 
@@ -47,6 +54,13 @@ describe("FOREIGN_CURRENCIES", () => {
       "JPY",
       "AUD",
       "CNY",
+      "GBP",
+      "HKD",
+      "MYR",
+      "THB",
+      "PHP",
+      "KRW",
+      "INR",
     ]);
   });
 });

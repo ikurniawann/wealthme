@@ -11,6 +11,13 @@ const LIVE_BODY = {
     JPY: 179.7,
     SGD: 1.4563,
     USD: 1.1403,
+    GBP: 0.861,
+    HKD: 8.97,
+    MYR: 4.98,
+    THB: 38.1,
+    PHP: 65.7,
+    KRW: 1562.4,
+    INR: 95.6,
   },
 };
 
@@ -30,7 +37,7 @@ describe("FrankfurterClient — revisi I", () => {
 
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(fetchImpl.mock.calls[0][0]).toBe(
-      "https://api.frankfurter.dev/v1/latest?base=EUR&symbols=IDR,USD,SGD,JPY,AUD,CNY",
+      "https://api.frankfurter.dev/v1/latest?base=EUR&symbols=IDR,USD,SGD,JPY,AUD,CNY,GBP,HKD,MYR,THB,PHP,KRW,INR",
     );
     expect(fetchImpl.mock.calls[0][2]).toBe(5_000);
     expect(result).toEqual({
@@ -43,6 +50,13 @@ describe("FrankfurterClient — revisi I", () => {
         JPY: "113.674012",
         AUD: "12593.847102",
         CNY: "2668.445873",
+        GBP: "23724.994193",
+        HKD: "2277.282051",
+        MYR: "4101.851406",
+        THB: "536.147507",
+        PHP: "310.916591",
+        KRW: "13.074258",
+        INR: "213.673849",
       },
     });
   });
