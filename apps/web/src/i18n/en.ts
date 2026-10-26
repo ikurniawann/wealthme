@@ -572,6 +572,7 @@ export const en = {
       ariaLabel: "Switch language, current: %s",
     },
     searchDialog: {
+      actionsHeader: "Actions",
       ariaLabel: "Search transactions, accounts, menu",
       placeholder: "Search transactions, accounts, menu...",
       dialogTitle: "Search",

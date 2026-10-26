@@ -1,5 +1,6 @@
 "use client";
 
+import { isEditableTarget } from "@/hooks/use-shortcut-hint";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -70,6 +71,13 @@ export function Walkthrough() {
   // plain Ctrl/Cmd+Shift+<letter> often is.
   useEffect(() => {
     function handler(e: KeyboardEvent) {
+      if (
+        e.defaultPrevented ||
+        e.isComposing ||
+        e.repeat ||
+        isEditableTarget(e.target)
+      )
+        return;
       if (
         (e.metaKey || e.ctrlKey) &&
         e.shiftKey &&

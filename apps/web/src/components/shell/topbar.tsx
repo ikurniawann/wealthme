@@ -23,6 +23,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { useLocale } from "@/hooks/use-locale";
 import { useMyAccess } from "@/hooks/use-my-access";
 import { useMyRole } from "@/hooks/use-my-role";
+import { useShortcutHint } from "@/hooks/use-shortcut-hint";
 import { useAppBack } from "@/hooks/use-app-back";
 import {
   DropdownMenu,
@@ -151,6 +152,7 @@ export function Topbar() {
   const { t } = useLocale();
   const pathname = usePathname();
   const { setSearchOpen, setTxnOpen } = useShell();
+  const shortcut = useShortcutHint();
   const { goBack } = useAppBack();
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId;
@@ -203,6 +205,8 @@ export function Topbar() {
         className="wm-search"
         onClick={() => setSearchOpen(true)}
         aria-label={t.shell.search}
+        aria-keyshortcuts={`${shortcut.modifier}+K`}
+        title={`${t.shell.search} (${shortcut.search})`}
       >
         <Search
           className="size-4 shrink-0"
@@ -210,7 +214,7 @@ export function Topbar() {
           strokeWidth={2}
         />
         <span>{t.shell.v2.searchShort}</span>
-        <kbd className="wm-kbd">Ctrl K</kbd>
+        <kbd className="wm-kbd">{shortcut.search}</kbd>
       </button>
       <span className="wm-spacer" />
       <ThemeButton />
@@ -220,6 +224,8 @@ export function Topbar() {
         <button
           type="button"
           className="wm-add"
+          aria-keyshortcuts={`${shortcut.modifier}+Shift+Enter`}
+          title={`${t.shell.addTransaction} (${shortcut.transaction})`}
           onClick={() => setTxnOpen(true)}
         >
           <Plus aria-hidden="true" strokeWidth={2.4} />

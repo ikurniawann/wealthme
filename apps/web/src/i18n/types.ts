@@ -877,6 +877,7 @@ export type I18nDictionary = {
       ariaLabel: string;
     };
     searchDialog: {
+      actionsHeader: string;
       ariaLabel: string;
       placeholder: string;
       dialogTitle: string;

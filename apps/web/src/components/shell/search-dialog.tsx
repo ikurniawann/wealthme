@@ -1,5 +1,6 @@
 "use client";
 
+import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import {
   useEffect,
@@ -19,6 +20,10 @@ import {
   Landmark,
   LineChart,
   ReceiptText,
+  Plus,
+  Languages,
+  Sun,
+  UserCheck,
   Search,
   ShieldCheck,
   Target,
@@ -33,8 +38,15 @@ import { useSession } from "@/lib/auth-compat";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import { isEditableTarget, useShortcutHint } from "@/hooks/use-shortcut-hint";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useLocale } from "@/hooks/use-locale";
+import {
+  NAV_SECTIONS,
+  canRecordTransaction,
+  isNavItemVisibleForAccess,
+} from "@/lib/nav";
+import { useMyAccess } from "@/hooks/use-my-access";
 import { useShell } from "./shell-context";
 import { hubLabel, useHubs } from "./sidebar-sections";
 
@@ -51,6 +63,10 @@ const ICONS: Record<string, LucideIcon> = {
   Landmark,
   Briefcase,
   ReceiptText,
+  Plus,
+  Languages,
+  Sun,
+  UserCheck,
   ShieldCheck,
   Bot,
   Calculator,
@@ -65,10 +81,14 @@ const ICONS: Record<string, LucideIcon> = {
 // or async-results handling of its own, so only its clear-button affordance
 // was worth borrowing.
 export function SearchDialog() {
-  const { searchOpen, setSearchOpen } = useShell();
+  const { searchOpen, setSearchOpen, setTxnOpen } = useShell();
+  const { access } = useMyAccess();
+  const { resolvedTheme, setTheme } = useTheme();
   const router = useRouter();
+  const shortcut = useShortcutHint();
+  const canAddTransaction = canRecordTransaction(access);
   const { data: session } = useSession();
-  const { t } = useLocale();
+  const { t, locale, toggle } = useLocale();
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -99,14 +119,34 @@ export function SearchDialog() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      if (
+        e.defaultPrevented ||
+        e.isComposing ||
+        e.repeat ||
+        isEditableTarget(e.target) ||
+        e.altKey
+      )
+        return;
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        !e.shiftKey &&
+        e.key.toLowerCase() === "k"
+      ) {
         e.preventDefault();
         setSearchOpen(true);
+      } else if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        e.key === "Enter" &&
+        canAddTransaction
+      ) {
+        e.preventDefault();
+        setTxnOpen(true);
       }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [setSearchOpen]);
+  }, [setSearchOpen, setTxnOpen, canAddTransaction]);
 
   const { primary, secondary } = useHubs();
   const allPages = [...primary, ...secondary].flatMap((hub) => {
@@ -122,17 +162,62 @@ export function SearchDialog() {
       }));
     return [self, ...subs];
   });
-  allPages.unshift({
-    href: "/beranda",
-    label: t.shell.navSections.beranda,
-    icon: Home,
-    group: "",
-  });
+  // Include routes outside the hub sidebar, using the same access rules.
+  for (const item of NAV_SECTIONS.flatMap((section) => section.items)) {
+    if (
+      isNavItemVisibleForAccess(item, access) &&
+      !allPages.some((page) => page.href === item.href)
+    ) {
+      allPages.push({
+        href: item.href,
+        label: t.shell.navSections[item.id],
+        icon: item.icon,
+        group: "",
+      });
+    }
+  }
+  allPages.push(
+    { href: "/akun", label: t.shell.v2.account, icon: User, group: "" },
+    {
+      href: "/akses-saya",
+      label: t.shell.pageTitles["akses-saya"],
+      icon: UserCheck,
+      group: "",
+    },
+  );
 
   const go = (href: string) => {
-    setSearchOpen(false);
+    handleOpenChange(false);
     router.push(href);
   };
+  const actions = [
+    ...(canAddTransaction
+      ? [
+          {
+            shortcut: shortcut.transaction,
+            id: "transaction",
+            label: t.shell.addTransaction,
+            icon: Plus,
+            run: () => setTxnOpen(true),
+          },
+        ]
+      : []),
+    {
+      id: "theme",
+      label: t.shell.v2.toggleTheme,
+      icon: Sun,
+      run: () => setTheme(resolvedTheme === "dark" ? "light" : "dark"),
+    },
+    {
+      id: "language",
+      label: t.shell.localeSwitcher.ariaLabel.replace(
+        "%s",
+        locale.toUpperCase(),
+      ),
+      icon: Languages,
+      run: toggle,
+    },
+  ];
 
   const trimmedQuery = query.trim();
   const meetsMinLength = trimmedQuery.length >= 2;
@@ -141,30 +226,40 @@ export function SearchDialog() {
   // Pages match instantly on any query (no debounce, no API): the hub model is
   // already access-filtered, so a member only ever finds pages they may open.
   const needle = trimmedQuery.toLowerCase();
-  const pages = allPages
-    .filter((page) => !needle || page.label.toLowerCase().includes(needle))
-    .slice(0, needle ? 8 : 6);
+  const pages = allPages.filter(
+    (page) => !needle || page.label.toLowerCase().includes(needle),
+  );
+  const matchingActions = actions.filter(
+    (action) => !needle || action.label.toLowerCase().includes(needle),
+  );
   // Only declare "no results" once the debounce has settled on the current
   // query — avoids a flash of the empty state mid-keystroke.
   const showNoResults =
     meetsMinLength &&
     debouncedQuery === trimmedQuery &&
     !showApi &&
-    pages.length === 0;
+    pages.length === 0 &&
+    matchingActions.length === 0;
 
   // uiarc.dev reference — a command palette's results should be fully
   // keyboard-navigable (Arrow Up/Down + Enter), not mouse-only. `.wm-pal-item`
   // already had `aria-selected="true"` styling in bento.css with nothing
   // ever setting it; this wires up the roving index that was missing.
   const flatItems = [
-    ...pages.map((p) => ({ href: p.href })),
-    ...(showApi ? apiResults.map((r) => ({ href: r.href })) : []),
+    ...pages.map((p) => ({ run: () => go(p.href) })),
+    ...(showApi ? apiResults.map((r) => ({ run: () => go(r.href) })) : []),
+    ...matchingActions.map((action) => ({
+      run: () => {
+        handleOpenChange(false);
+        action.run();
+      },
+    })),
   ];
   const [activeIndex, setActiveIndex] = useState(0);
   // Reset the active index whenever the result set itself changes — derived
   // during render (no effect), same "adjusting state when a prop changes"
   // pattern as family-handle-card.tsx's draft reset.
-  const resultsKey = `${query}:${showApi}:${pages.length}`;
+  const resultsKey = `${query}:${showApi}:${flatItems.length}`;
   const [prevResultsKey, setPrevResultsKey] = useState(resultsKey);
   if (resultsKey !== prevResultsKey) {
     setPrevResultsKey(resultsKey);
@@ -176,6 +271,7 @@ export function SearchDialog() {
   }, [activeIndex]);
 
   const handleQueryKeyDown = (e: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (e.nativeEvent.isComposing || e.metaKey || e.ctrlKey || e.altKey) return;
     if (flatItems.length === 0) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -187,7 +283,7 @@ export function SearchDialog() {
       const target = flatItems[activeIndex];
       if (target) {
         e.preventDefault();
-        go(target.href);
+        target.run();
       }
     }
   };
@@ -233,6 +329,9 @@ export function SearchDialog() {
               <X className="size-4" aria-hidden="true" />
             </button>
           )}
+          <kbd className="wm-kbd" title={t.shell.search}>
+            {shortcut.search}
+          </kbd>
           <kbd className="wm-kbd">Esc</kbd>
         </div>
         <div
@@ -296,6 +395,38 @@ export function SearchDialog() {
                         {d.sub}
                       </span>
                     </span>
+                  </button>
+                );
+              })}
+            </>
+          )}
+          {matchingActions.length > 0 && (
+            <>
+              <h4>{t.shell.searchDialog.actionsHeader}</h4>
+              {matchingActions.map((action, i) => {
+                const index =
+                  pages.length + (showApi ? apiResults.length : 0) + i;
+                const Icon = action.icon;
+                return (
+                  <button
+                    key={action.id}
+                    id={`search-dialog-item-${index}`}
+                    ref={(el) => {
+                      itemRefs.current[index] = el;
+                    }}
+                    type="button"
+                    role="option"
+                    aria-selected={index === activeIndex}
+                    className="wm-pal-item"
+                    onClick={() => flatItems[index].run()}
+                  >
+                    <span className="wm-ic">
+                      <Icon aria-hidden="true" />
+                    </span>
+                    {action.label}
+                    {"shortcut" in action && (
+                      <kbd className="wm-kbd ml-auto">{action.shortcut}</kbd>
+                    )}
                   </button>
                 );
               })}

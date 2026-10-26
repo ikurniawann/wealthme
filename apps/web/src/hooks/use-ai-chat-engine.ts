@@ -79,6 +79,7 @@ export function useAiChatEngine() {
     refresh: refreshConversations,
   } = useAiConversations();
 
+  const conversationRequest = React.useRef(0);
   const [messages, setMessages] = React.useState<AiChatMsg[]>([
     { id: 0, role: "assistant", text: t.ai.initialMessage },
   ]);
@@ -252,6 +253,7 @@ export function useAiChatEngine() {
   /** "Mulai Baru": aborts any in-flight stream and resets the transcript to
    * the greeting the engine mounts with. */
   function handleNewConversation() {
+    conversationRequest.current += 1;
     abortRef.current?.abort();
     setIsStreaming(false);
     idRef.current = 1;
@@ -261,8 +263,10 @@ export function useAiChatEngine() {
 
   async function handleOpenConversation(id: string) {
     if (isStreaming) return;
+    const request = ++conversationRequest.current;
     try {
       const detail = await fetchConversation(id);
+      if (request !== conversationRequest.current) return;
       abortRef.current?.abort();
       setMessages([
         { id: 0, role: "assistant", text: t.ai.initialMessage },
@@ -276,19 +280,19 @@ export function useAiChatEngine() {
       idRef.current = detail.messages.length + 1;
       setConversationId(detail.id);
     } catch {
-      toast.error(t.ai.historyLoadFailed);
+      if (request === conversationRequest.current)
+        toast.error(t.ai.historyLoadFailed);
     }
   }
 
-  async function handleDeleteConversation(id: string) {
-    if (!window.confirm(t.ai.historyDeleteConfirm)) return;
-    try {
-      await deleteConversation(id);
-      if (id === conversationId) setConversationId(null);
-      toast.success(t.ai.historyDeleted);
-    } catch {
-      toast.error(t.ai.historyDeleteFailed);
+  function handleDeleteConversation(id: string) {
+    if (isStreaming) return;
+    conversationRequest.current += 1;
+    if (id === conversationId) {
+      // New messages must never target a conversation awaiting deletion.
+      handleNewConversation();
     }
+    deleteConversation(id);
   }
 
   return {

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Sora, DM_Mono } from "next/font/google";
 import "./globals.css";
+import "./ux-enhancements.css";
 import { SessionProviderWrapper } from "@/components/providers/session-provider-wrapper";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";

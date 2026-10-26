@@ -11,9 +11,8 @@ jest.mock("../../lib/auth-client", () => ({
   },
 }));
 
-jest.mock("next/navigation", () => ({
-  useRouter: () => ({ push: jest.fn() }),
-}));
+const mockPush = jest.fn();
+jest.mock("next/navigation", () => ({ useRouter: () => ({ push: mockPush }) }));
 
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -75,4 +74,63 @@ describe("SearchDialog — clear button (Batch 4)", () => {
       expect(screen.queryByRole("combobox")).not.toBeInTheDocument(),
     );
   });
+});
+
+describe("Command menu", () => {
+  it("includes routes outside the sidebar hubs and navigates using arrows and Enter", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    const input = await openDialog(user);
+    await user.type(input, "akun");
+    expect(screen.getAllByRole("option").length).toBeGreaterThan(0);
+    await user.keyboard("{ArrowDown}{ArrowUp}{Enter}");
+    await waitFor(() => expect(mockPush).toHaveBeenCalled());
+  });
+
+  it("includes supported global actions and executes them from the keyboard", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    const input = await openDialog(user);
+    await user.type(input, "Ganti tema");
+    expect(
+      screen.getByRole("option", { name: "Ganti tema" }),
+    ).toBeInTheDocument();
+    await user.keyboard("{Enter}");
+    await waitFor(() =>
+      expect(screen.queryByRole("combobox")).not.toBeInTheDocument(),
+    );
+  });
+});
+
+it.each(["input", "textarea", "select", "div"])(
+  "ignores command shortcuts while editing a %s",
+  async (tag) => {
+    const user = userEvent.setup();
+    renderDialog();
+    const field = document.createElement(tag);
+    if (tag === "div") {
+      field.contentEditable = "true";
+      field.setAttribute("contenteditable", "true");
+    }
+    field.tabIndex = 0;
+    document.body.appendChild(field);
+    field.focus();
+    await user.keyboard("{Control>}k{/Control}");
+    expect(
+      screen.queryByRole("combobox", {
+        name: "Cari transaksi, rekening bank, menu",
+      }),
+    ).not.toBeInTheDocument();
+    field.remove();
+  },
+);
+
+it("does not activate a result on modified Enter in the query field", async () => {
+  const user = userEvent.setup();
+  renderDialog();
+  const input = await openDialog(user);
+  await user.type(input, "akun");
+  await user.keyboard("{Control>}{Shift>}{Enter}{/Shift}{/Control}");
+  expect(input).toHaveValue("akun");
+  expect(input).toBeInTheDocument();
 });
