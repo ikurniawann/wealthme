@@ -23,6 +23,8 @@ export interface AssetDto {
   notes: string | null;
   investmentId?: string | null;
   ownerUserId?: string | null;
+  /** "Shared with others" OFF: only Master / Co-Master see it. */
+  isPrivate?: boolean;
   quantity?: string | null;
   unit?: string | null;
   valuationModel?: AssetValuationModel;
@@ -113,6 +115,7 @@ export interface CreateAssetDto {
   acquisitionDate?: string;
   // Aset fields (2026-10-20). Owner: a member's userId, null = Bersama
   // (family). A row-scoped member may only record for themselves.
+  isPrivate?: boolean;
   ownerUserId?: string | null;
   // Purchase price in IDR digits (fxInputs field "acquisitionCost" for a
   // foreign amount). Becomes the opening transaction's cost basis.
@@ -134,5 +137,6 @@ export interface UpdateAssetDto {
   valueChangeAmount?: string;
   categoryId?: string;
   acquisitionDate?: string;
+  isPrivate?: boolean;
   details?: Record<string, string> | null;
 }

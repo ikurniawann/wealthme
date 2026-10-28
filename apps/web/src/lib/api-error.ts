@@ -35,6 +35,10 @@ const TECHNICAL =
 const ENGLISH =
   /\b(the|a|an|is|are|must|may|should|already|exists?|cannot|invalid|not found|required|only|please|failed|error)\b/i;
 
+/** The bare HTTP reason phrase fetch falls back to when the body has no message. */
+const STATUS_TEXT =
+  /^(bad request|unauthorized|forbidden|not found|conflict|gone|payload too large|unprocessable entity|too many requests|internal server error|bad gateway|service unavailable|gateway timeout)\.?$/i;
+
 const MAX_LENGTH = 200;
 
 export function apiErrorMessage(err: unknown, fallback: string): string {
@@ -49,7 +53,53 @@ export function apiErrorMessage(err: unknown, fallback: string): string {
     if (match) return typeof copy === "string" ? copy : copy(match);
   }
   if (status < 400 || status >= 500) return fallback;
-  if (text.length > MAX_LENGTH || TECHNICAL.test(text) || ENGLISH.test(text))
+  if (
+    text.length > MAX_LENGTH ||
+    STATUS_TEXT.test(text) ||
+    TECHNICAL.test(text) ||
+    ENGLISH.test(text)
+  )
     return fallback;
   return text;
+}
+
+export interface ApiErrorCopy {
+  sessionExpired: string;
+  accessDenied: string;
+  generic: string;
+  timeout: string;
+  validation: string;
+  notFound: string;
+  conflict: string;
+  rateLimited: string;
+  server: string;
+  network: string;
+}
+
+/**
+ * The reason an API call failed, in the user's language: a server message
+ * only when it is plain user copy, otherwise copy chosen by failure kind
+ * (validation / not found / conflict / rate limit / server / offline). Never
+ * a status code, request id or class-validator English.
+ */
+export function describeApiError(err: unknown, copy: ApiErrorCopy): string {
+  if (!err || typeof err !== "object") return copy.generic;
+  const { status, code } = err as { status?: unknown; code?: unknown };
+  if (typeof status !== "number") {
+    // fetch() rejects with a TypeError when no response arrived at all.
+    return err instanceof TypeError ? copy.network : copy.generic;
+  }
+  if (code === "TIMEOUT") return copy.timeout;
+  if (status === 401) return copy.sessionExpired;
+  if (status === 403) return copy.accessDenied;
+  if (status === 404) return copy.notFound;
+  if (status === 429) return copy.rateLimited;
+  if (status >= 500) return copy.server;
+  const kindFallback =
+    status === 409
+      ? copy.conflict
+      : status === 400 || status === 422
+        ? copy.validation
+        : copy.generic;
+  return apiErrorMessage(err, kindFallback);
 }

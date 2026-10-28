@@ -14,6 +14,7 @@ import { apiFetch } from "@/lib/api-client";
 import { apiErrorMessage } from "@/lib/api-error";
 import { uploadAssetDocument } from "@/lib/asset-attachments";
 import { queryKeys } from "@/lib/query-keys";
+import { toastApiError } from "@/hooks/use-api-error";
 import { useLocale } from "@/hooks/use-locale";
 
 export interface AssetBody {
@@ -75,8 +76,8 @@ export function useAssetSave({
       if (docFile) {
         try {
           await uploadAssetDocument(familyGroupId, saved.id, docFile, token);
-        } catch {
-          toast.error(t.aset.toastDocumentFailed);
+        } catch (err) {
+          toastApiError(err, t, t.aset.toastDocumentFailed);
         }
       }
       void queryClient.invalidateQueries({

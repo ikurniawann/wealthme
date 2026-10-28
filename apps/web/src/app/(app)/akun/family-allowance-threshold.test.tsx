@@ -232,7 +232,10 @@ describe("ThresholdForm — per-member large-transaction threshold (EPIC-023 D3)
     );
 
     await waitFor(() => {
-      expect(mockToastError).toHaveBeenCalledWith(t.thresholdSaveFailed);
+      expect(mockToastError).toHaveBeenCalledWith(
+        t.thresholdSaveFailed,
+        expect.objectContaining({ description: expect.any(String) }),
+      );
     });
     expect(onClose).not.toHaveBeenCalled();
   });

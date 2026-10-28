@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SharedToggle } from "@/components/forms/shared-toggle";
 import {
   Plus,
   CreditCard,
@@ -370,6 +371,7 @@ interface LiabilityBody {
   dueDate?: string;
   autoAdvanceDueDate?: boolean;
   notes?: string;
+  isPrivate?: boolean;
   interestMethod: InterestMethod;
   tenorMonths?: number;
   startDate?: string | null;
@@ -421,6 +423,7 @@ function LiabilityModal({
     editing?.autoAdvanceDueDate ?? false,
   );
   const [notes, setNotes] = useState(editing?.notes ?? "");
+  const [shared, setShared] = useState(!(editing?.isPrivate ?? false));
   const [interestMethod, setInterestMethod] = useState<InterestMethod>(
     editing?.interestMethod ?? DEFAULT_INTEREST_METHOD.kartu_kredit,
   );
@@ -560,6 +563,7 @@ function LiabilityModal({
           dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
           autoAdvanceDueDate: dueDate ? autoAdvanceDueDate : undefined,
           notes: notes.trim() || undefined,
+          isPrivate: !shared,
           interestMethod,
           tenorMonths:
             usesTenor && tenorDigits ? Number(tenorDigits) : undefined,
@@ -677,6 +681,8 @@ function LiabilityModal({
                   onChange={(e) => setNotes(e.target.value)}
                 />
               </div>
+
+              <SharedToggle checked={shared} onChange={setShared} />
             </fieldset>
 
             <fieldset className="mt-3 space-y-3 rounded-lg border p-3">

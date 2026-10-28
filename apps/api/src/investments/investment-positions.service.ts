@@ -250,6 +250,7 @@ export class InvestmentPositionsService {
           type: h.type,
           market: h.market,
           ownerUserId: owner,
+          isPrivate: h.isPrivate ?? false,
           platformAccountId: platform?.id ?? null,
           cashAccountId: entry.cashAccountId ?? null,
           currency: dto.entry.currency,

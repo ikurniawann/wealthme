@@ -100,12 +100,33 @@ function ClassBlock({
   );
 }
 
+/** Gold held across physical assets and holdings, in grams (kg × 1000). */
+export function totalGoldGrams(
+  rows: readonly {
+    subtype: string;
+    quantity: string | null;
+    unit: string | null;
+  }[],
+): number {
+  return rows.reduce((sum, r) => {
+    if (r.subtype !== "emas" || !r.quantity) return sum;
+    const n = Number(r.quantity);
+    if (!Number.isFinite(n)) return sum;
+    const unit = (r.unit ?? "gram").trim().toLowerCase();
+    if (unit === "kg") return sum + n * 1000;
+    if (unit === "gram" || unit === "g" || unit === "gr") return sum + n;
+    return sum;
+  }, 0);
+}
+
 export function AsetSummary({
   summary,
   isLoading,
+  goldGrams = 0,
 }: {
   summary: AssetsOverviewSummaryDto | undefined;
   isLoading: boolean;
+  goldGrams?: number;
 }) {
   const { t, locale } = useLocale();
   const c = t.aset.v3;
@@ -163,6 +184,15 @@ export function AsetSummary({
           <span className="as3-scope" data-scope={summary.scope}>
             {summary.scope === "filtered" ? c.scopeFiltered : c.scopeAll}
           </span>
+          {goldGrams > 0 && (
+            <span className="as3-scope">
+              {t.aset.goldTotalLabel}:{" "}
+              {new Intl.NumberFormat(locale, {
+                maximumFractionDigits: 3,
+              }).format(goldGrams)}{" "}
+              gr
+            </span>
+          )}
           {summary.incomplete && (
             <span className="as3-flag">
               <CircleAlert aria-hidden="true" />

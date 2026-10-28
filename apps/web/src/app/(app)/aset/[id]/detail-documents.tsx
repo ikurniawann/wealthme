@@ -10,6 +10,7 @@ import {
   openAssetDocument,
   uploadAssetDocument,
 } from "@/lib/asset-attachments";
+import { toastApiError } from "@/hooks/use-api-error";
 import { useLocale } from "@/hooks/use-locale";
 import { fillCopy } from "../aset-model";
 
@@ -57,8 +58,8 @@ export function DocumentsCard({
       await uploadAssetDocument(fg, assetId, file, token);
       toast.success(d.docUploaded);
       await refresh();
-    } catch {
-      toast.error(d.docFailed);
+    } catch (err) {
+      toastApiError(err, t, d.docFailed);
     } finally {
       setUploading(false);
     }
@@ -74,8 +75,8 @@ export function DocumentsCard({
       );
       toast.success(d.docDeleted);
       await refresh();
-    } catch {
-      toast.error(d.docFailed);
+    } catch (err) {
+      toastApiError(err, t, d.docFailed);
     }
   }
 

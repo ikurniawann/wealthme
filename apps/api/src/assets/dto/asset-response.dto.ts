@@ -69,6 +69,9 @@ export class AssetResponseDto {
   currentEstimatedValue!: string;
   @ApiProperty() createdAt!: string;
   @ApiProperty() updatedAt!: string;
+
+  @ApiProperty()
+  isPrivate!: boolean;
 }
 
 export class AssetAttachmentResponseDto {

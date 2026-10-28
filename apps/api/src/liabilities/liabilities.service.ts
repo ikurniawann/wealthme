@@ -127,6 +127,7 @@ export type LiabilityRow = {
   dueDate: Date | null;
   autoAdvanceDueDate: boolean;
   notes: string | null;
+  isPrivate: boolean;
   currency: string;
   interestMethod: InterestMethod;
   tenorMonths: number | null;
@@ -575,6 +576,7 @@ function toLiabilityDto(
     // requiring the frontend to separately query transactions.
     paidThisPeriod,
     notes: liability.notes,
+    isPrivate: liability.isPrivate,
     currency: liability.currency,
     interestMethod: liability.interestMethod,
     tenorMonths: liability.tenorMonths,
@@ -683,9 +685,10 @@ export class LiabilitiesService {
   async findAll(
     familyGroupId: string,
     now: Date = new Date(),
+    canSeePrivate = true,
   ): Promise<LiabilityResponseDto[]> {
     const liabilities = await this.prisma.liability.findMany({
-      where: { familyGroupId },
+      where: { familyGroupId, ...(canSeePrivate ? {} : { isPrivate: false }) },
       orderBy: { createdAt: "asc" },
     });
 
@@ -1055,6 +1058,7 @@ export class LiabilitiesService {
       dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
       autoAdvanceDueDate: dto.autoAdvanceDueDate ?? false,
       notes: dto.notes ?? null,
+      isPrivate: dto.isPrivate ?? false,
       currency: dto.currency ?? "IDR",
       interestMethod: amounts.interestMethod,
       tenorMonths: dto.tenorMonths ?? null,
@@ -1351,6 +1355,7 @@ export class LiabilitiesService {
           : existing.dueDate,
       autoAdvanceDueDate: dto.autoAdvanceDueDate ?? existing.autoAdvanceDueDate,
       notes: dto.notes !== undefined ? (dto.notes ?? null) : existing.notes,
+      isPrivate: dto.isPrivate ?? existing.isPrivate,
       currency: dto.currency ?? existing.currency,
       interestMethod,
       tenorMonths,

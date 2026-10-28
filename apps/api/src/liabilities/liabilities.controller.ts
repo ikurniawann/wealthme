@@ -22,6 +22,7 @@ import {
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { PageAccess } from "../common/decorators/page-access.decorator";
+import { canSeePrivateItems } from "../common/utils/privacy.util";
 import { FX_FIELD_SPECS } from "../fx/fx-field-specs";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { FxInputService } from "../fx/fx-input.service";
@@ -70,8 +71,13 @@ export class LiabilitiesController {
   @ApiResponse({ status: 200, type: [LiabilityResponseDto] })
   findAll(
     @Param("familyGroupId") familyGroupId: string,
+    @Req() req: Request,
   ): Promise<LiabilityResponseDto[]> {
-    return this.liabilitiesService.findAll(familyGroupId);
+    return this.liabilitiesService.findAll(
+      familyGroupId,
+      new Date(),
+      canSeePrivateItems(req.tenantContext?.member?.role),
+    );
   }
 
   @Get("summary")

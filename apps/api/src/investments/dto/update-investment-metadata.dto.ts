@@ -19,6 +19,7 @@ export class UpdateInvestmentMetadataDto {
   @Matches(/^[A-Z0-9._-]+$/i)
   ticker?: string;
   @IsOptional() @IsString() @MaxLength(64) ownerUserId?: string | null;
+  @IsOptional() @IsBoolean() isPrivate?: boolean;
   @IsOptional() @IsUUID() platformAccountId?: string | null;
   @IsOptional() @IsUUID() cashAccountId?: string | null;
   @IsOptional() @IsString() @MaxLength(100) priceSymbol?: string | null;

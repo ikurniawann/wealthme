@@ -26,6 +26,8 @@ export class PositionHoldingDto {
   @IsEnum(InvestmentType) type!: InvestmentType;
   @IsEnum(InvestmentMarket) market!: InvestmentMarket;
   @IsOptional() @IsString() @MinLength(1) @MaxLength(64) ownerUserId?: string;
+  /** "Shared with others" OFF: only Master / Co-Master see the holding. */
+  @IsOptional() @IsBoolean() isPrivate?: boolean;
   @IsOptional() @IsUUID() platformAccountId?: string;
   @IsOptional() @IsBoolean() manualInstrument?: boolean;
   @IsOptional() @IsString() @MaxLength(100) priceSymbol?: string;

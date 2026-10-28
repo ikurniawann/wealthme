@@ -1,5 +1,6 @@
 "use client";
 
+import { toastApiError } from "@/hooks/use-api-error";
 import * as React from "react";
 import { toast } from "sonner";
 import {
@@ -835,7 +836,8 @@ function ReconciliationTemplateManagerDialog({
       setAmountColumn("");
       setDateFormat("");
     },
-    onError: () => toast.error(t.rekonsiliasi.toastTemplateSaveFailed),
+    onError: (err) =>
+      toastApiError(err, t, t.rekonsiliasi.toastTemplateSaveFailed),
   });
 
   const deleteMutation = useMutation({
@@ -848,7 +850,8 @@ function ReconciliationTemplateManagerDialog({
       invalidateTemplates();
       toast.success(t.rekonsiliasi.toastTemplateDeleted);
     },
-    onError: () => toast.error(t.rekonsiliasi.toastTemplateDeleteFailed),
+    onError: (err) =>
+      toastApiError(err, t, t.rekonsiliasi.toastTemplateDeleteFailed),
   });
 
   return (
@@ -1905,10 +1908,7 @@ export default function RekonsiliasiPage() {
       toast.success(t.rekonsiliasi.toastEntryImported);
     },
     onError: (err: unknown) => {
-      toast.error(
-        (err instanceof Error && err.message.trim()) ||
-          t.rekonsiliasi.toastImportFailedDefault,
-      );
+      toastApiError(err, t, t.rekonsiliasi.toastImportFailedDefault);
     },
   });
 
@@ -1944,10 +1944,7 @@ export default function RekonsiliasiPage() {
       }
     },
     onError: (err: unknown) => {
-      toast.error(
-        (err instanceof Error && err.message.trim()) ||
-          t.rekonsiliasi.toastImportFailedDefault,
-      );
+      toastApiError(err, t, t.rekonsiliasi.toastImportFailedDefault);
     },
   });
 

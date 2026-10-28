@@ -25,6 +25,8 @@ export interface PositionState {
   manual: boolean;
   priceSymbol: string;
   owner: string;
+  /** "Shared with others" toggle; OFF = Master & Co-Master only. */
+  shared: boolean;
   platformId: string;
   pocketId: string;
   currency: FxCurrencyCode;
@@ -53,6 +55,7 @@ export function initialPosition(owner: string): PositionState {
     manual: false,
     priceSymbol: "",
     owner,
+    shared: true,
     platformId: "",
     pocketId: "",
     currency: "IDR",
@@ -210,6 +213,7 @@ export function positionBody(s: PositionState, key: string) {
       manualInstrument: s.manual,
       priceSymbol: s.priceSymbol.trim() || undefined,
       ownerUserId: s.owner || undefined,
+      isPrivate: !s.shared,
       platformAccountId: s.platformId || undefined,
       details: detailsForPosition(s),
     },

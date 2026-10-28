@@ -32,6 +32,7 @@ export class LiabilityResponseDto {
   })
   paidThisPeriod!: boolean;
   @ApiProperty({ nullable: true }) notes!: string | null;
+  @ApiProperty() isPrivate!: boolean;
   @ApiProperty() currency!: string;
   @ApiProperty({ enum: ["efektif", "flat", "anuitas"] })
   interestMethod!: string;

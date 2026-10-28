@@ -28,6 +28,11 @@ export const en = {
     evening: "Good evening",
   },
   common: {
+    sharing: {
+      label: "Shared with others",
+      onHint: "Family members with access can see this.",
+      offHint: "Only Master & Co-Master can see this.",
+    },
     percentRangeError: "Enter a percentage between 0 and 100",
     emojiSearchPlaceholder: "Search icons… (e.g. house, car, school)",
     emojiNoResults: "No icon found. Try another word.",
@@ -111,6 +116,12 @@ export const en = {
       accessDenied: "You don't have access",
       generic: "Something went wrong, please try again",
       timeout: "Timed out, try again",
+      validation: "Check your entries, some data is not valid.",
+      notFound: "Not found. It may have been deleted.",
+      conflict: "This conflicts with existing data or was just changed.",
+      rateLimited: "Too many attempts. Wait a moment and try again.",
+      server: "The server is having trouble. Try again shortly.",
+      network: "Can't reach the server. Check your internet connection.",
     },
   },
   beranda: {
@@ -2384,6 +2395,7 @@ export const en = {
     fieldNamePlaceholder: "e.g. Kelapa Gading Apartment",
     fieldCategoryLabel: "Category",
     fieldValueLabel: "Asset Value",
+    goldTotalLabel: "Total gold",
     fieldValuePlaceholder: "e.g. 200,000,000",
     fieldValueChangeRateLabel: "Value Change per Year (%)",
     fieldValueChangeRatePlaceholder:

@@ -42,7 +42,7 @@ import {
   parseFilters,
   type AsetFilters,
 } from "./aset-model";
-import { AsetHeader, AsetSummary } from "./aset-summary";
+import { AsetHeader, AsetSummary, totalGoldGrams } from "./aset-summary";
 import { AsetFilterBar, type OwnerOption } from "./aset-filters";
 import { AsetList, ClassTabs } from "./aset-table";
 import { AsetActivity } from "./aset-activity";
@@ -162,6 +162,7 @@ function AsetPageInner() {
       <AsetSummary
         summary={overview.data?.summary}
         isLoading={overview.isLoading}
+        goldGrams={totalGoldGrams(overview.data?.rows ?? [])}
       />
       <AsetFilterBar
         filters={filters}

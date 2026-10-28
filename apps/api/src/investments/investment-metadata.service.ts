@@ -148,6 +148,7 @@ export class InvestmentMetadataService {
           ticker,
           market: dto.market,
           ownerUserId: owner,
+          ...(dto.isPrivate !== undefined ? { isPrivate: dto.isPrivate } : {}),
           platformAccountId: platformId,
           cashAccountId: pocketId,
           lotSize: dto.market === "IDX" ? 100 : 1,

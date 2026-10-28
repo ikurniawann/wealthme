@@ -1,5 +1,6 @@
 "use client";
 
+import { toastApiError } from "@/hooks/use-api-error";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -346,7 +347,7 @@ export default function MasterCoaPage() {
       setDeleteId(null);
       toast.success(t.mastercoa.toastDeleted);
     },
-    onError: () => toast.error(t.mastercoa.toastDeleteFailed),
+    onError: (err) => toastApiError(err, t, t.mastercoa.toastDeleteFailed),
   });
 
   function openAdd() {

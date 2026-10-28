@@ -435,6 +435,8 @@ export type I18nDictionary = {
     evening: string;
   };
   common: {
+    /** Single "Shared with others" toggle shared by every add/edit form. */
+    sharing: { label: string; onHint: string; offHint: string };
     /** Inline error for a percentage field outside 0–100 (pattern title). */
     percentRangeError: string;
     /** Searchable emoji picker (components/wm/emoji-picker.tsx) — shared by
@@ -516,6 +518,16 @@ export type I18nDictionary = {
       // distinct from `generic` so a hung request reads differently from a
       // generic failure.
       timeout: string;
+      /** 400/422 whose server text is technical or English. */
+      validation: string;
+      notFound: string;
+      /** 409 without a user-facing server reason. */
+      conflict: string;
+      rateLimited: string;
+      /** 5xx. */
+      server: string;
+      /** fetch failed before any response (offline, DNS, CORS). */
+      network: string;
     };
   };
   beranda: {
@@ -2366,6 +2378,7 @@ export type I18nDictionary = {
     fieldNamePlaceholder: string;
     fieldCategoryLabel: string;
     fieldValueLabel: string;
+    goldTotalLabel: string;
     fieldValuePlaceholder: string;
     // EPIC-021 #17/#18: signed annual value-change rate (depreciation < 0,
     // appreciation > 0).

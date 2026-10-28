@@ -25,6 +25,7 @@
 // real payout-missing state is already handled inline below. Claim logic
 // is untouched.
 
+import { toastApiError } from "@/hooks/use-api-error";
 import { use } from "react";
 import { Check, Link as LinkIcon } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -110,8 +111,8 @@ export function SplitShareView({ shareToken }: { shareToken: string }) {
       );
       toast.success(t.splitbill.publicToastClaimed);
     },
-    onError: (err: { message?: string }) => {
-      toast.error(err.message ?? t.splitbill.publicToastClaimFailedDefault);
+    onError: (err: unknown) => {
+      toastApiError(err, t, t.splitbill.publicToastClaimFailedDefault);
     },
   });
 

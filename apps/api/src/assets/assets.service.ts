@@ -135,6 +135,7 @@ function toAssetDto(asset: Asset): AssetResponseDto {
     // asset as Bersama and the edit form reset per-unit assets to total.
     investmentId: asset.investmentId,
     ownerUserId: asset.ownerUserId,
+    isPrivate: asset.isPrivate,
     quantity: asset.quantity?.toString() ?? null,
     unit: asset.unit,
     valuationModel: asset.valuationModel,
@@ -197,11 +198,13 @@ function identityFields(dto: {
   valuationModel?: AssetValuationModel;
   internalCode?: string | null;
   custodian?: string | null;
+  isPrivate?: boolean;
 }): {
   unit?: string | null;
   valuationModel?: AssetValuationModel;
   internalCode?: string | null;
   custodian?: string | null;
+  isPrivate?: boolean;
 } {
   const clean = (v: string | null | undefined) =>
     v === undefined ? undefined : v?.trim() || null;
@@ -210,6 +213,7 @@ function identityFields(dto: {
     valuationModel: dto.valuationModel,
     internalCode: clean(dto.internalCode),
     custodian: clean(dto.custodian),
+    isPrivate: dto.isPrivate,
   };
 }
 

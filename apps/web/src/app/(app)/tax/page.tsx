@@ -1,5 +1,6 @@
 "use client";
 
+import { toastApiError } from "@/hooks/use-api-error";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Send, FileText, ShieldCheck, Trash2, Upload, X } from "lucide-react";
@@ -216,8 +217,8 @@ function TaxPageContent() {
       await uploadTaxDocument(fgId, taxYear, file, token);
       toast.success(t.tax.toastDocumentUploaded);
       await invalidateTaxDocuments();
-    } catch {
-      toast.error(t.tax.toastDocumentFailed);
+    } catch (err) {
+      toastApiError(err, t, t.tax.toastDocumentFailed);
     } finally {
       setUploadingDoc(false);
     }
@@ -231,16 +232,16 @@ function TaxPageContent() {
       });
       toast.success(t.tax.toastDocumentDeleted);
       await invalidateTaxDocuments();
-    } catch {
-      toast.error(t.tax.toastDocumentFailed);
+    } catch (err) {
+      toastApiError(err, t, t.tax.toastDocumentFailed);
     }
   }
   async function handleDownloadSummary(format: "csv" | "pdf") {
     if (!fgId) return;
     try {
       await downloadTaxSummary(fgId, taxYear, format, token);
-    } catch {
-      toast.error(t.tax.toastDownloadFailed);
+    } catch (err) {
+      toastApiError(err, t, t.tax.toastDownloadFailed);
     }
   }
 

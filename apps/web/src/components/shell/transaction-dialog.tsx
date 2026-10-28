@@ -1,5 +1,6 @@
 "use client";
 
+import { toastApiError } from "@/hooks/use-api-error";
 import {
   useEffect,
   useId,
@@ -694,10 +695,11 @@ export function TransactionDialog() {
         queryKey: queryKeys.allowanceRequests.all(fgId),
       });
     },
-    onError: (err: { message?: string }) => {
-      toast.error(
-        t.shell.transactionDialog.saveFailedPrefix +
-          (err.message ?? t.shell.transactionDialog.retryFallback),
+    onError: (err: unknown) => {
+      toastApiError(
+        err,
+        t,
+        t.shell.transactionDialog.saveFailedPrefix.replace(/[:\s]+$/, ""),
       );
     },
   });
@@ -792,10 +794,11 @@ export function TransactionDialog() {
         queryKey: queryKeys.budgets.all(fgId),
       });
     },
-    onError: (err: { message?: string }) => {
-      toast.error(
-        t.shell.transactionDialog.saveFailedPrefix +
-          (err.message ?? t.shell.transactionDialog.retryFallback),
+    onError: (err: unknown) => {
+      toastApiError(
+        err,
+        t,
+        t.shell.transactionDialog.saveFailedPrefix.replace(/[:\s]+$/, ""),
       );
     },
   });

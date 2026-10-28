@@ -49,6 +49,7 @@ export interface LiabilityDto {
   // landed within the current calendar-month period.
   paidThisPeriod: boolean;
   notes: string | null;
+  isPrivate: boolean;
   currency: string;
   // Revisi G — per-product interest terms.
   interestMethod: InterestMethod;
@@ -86,6 +87,7 @@ export interface CreateLiabilityDto {
   dueDate?: string;
   autoAdvanceDueDate?: boolean;
   notes?: string;
+  isPrivate?: boolean;
   currency?: string;
   interestMethod?: InterestMethod;
   tenorMonths?: number;
@@ -108,6 +110,7 @@ export interface UpdateLiabilityDto {
   dueDate?: string;
   autoAdvanceDueDate?: boolean;
   notes?: string;
+  isPrivate?: boolean;
   currency?: string;
   interestMethod?: InterestMethod;
   tenorMonths?: number;

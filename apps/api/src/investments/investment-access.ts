@@ -1,4 +1,4 @@
-import { isRowScoped } from "../common/utils/privacy.util";
+import { canSeePrivateItems, isRowScoped } from "../common/utils/privacy.util";
 
 import type { LedgerActor } from "./ledger/ledger-support";
 import type { Prisma } from "@prisma/client";
@@ -8,8 +8,14 @@ export function investmentAccessWhere(
   actor: LedgerActor,
   write = false,
 ): Prisma.InvestmentWhereInput {
-  if (!isRowScoped(actor.member)) return {};
   const userId = actor.member?.userId ?? "";
+  // "Shared with others" OFF: only Master / Co-Master / admin_staff and the
+  // holding's owner see it.
+  if (!isRowScoped(actor.member)) {
+    return !actor.member || canSeePrivateItems(actor.member)
+      ? {}
+      : { OR: [{ isPrivate: false }, { ownerUserId: userId }] };
+  }
   return {
     OR: [
       { ownerUserId: userId },

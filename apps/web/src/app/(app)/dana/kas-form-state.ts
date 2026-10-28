@@ -29,6 +29,8 @@ export interface KasFormState {
   balanceRaw: string;
   date: string;
   shares: string[];
+  /** "Shared with others" OFF — only Master & Co-Master see it. */
+  isPrivate: boolean;
   includeInNetWorth: boolean;
   notes: string;
 }
@@ -85,6 +87,7 @@ export function initialKasState(
       balanceRaw: "",
       date: ctx.today,
       shares: (account.shares ?? []).map((s) => s.userId),
+      isPrivate: account.isPrivate ?? false,
       includeInNetWorth: account.includeInNetWorth ?? true,
       notes: account.notes ?? "",
     };
@@ -105,6 +108,7 @@ export function initialKasState(
     balanceRaw: "",
     date: ctx.today,
     shares: [],
+    isPrivate: false,
     includeInNetWorth: true,
     notes: "",
   };
@@ -198,7 +202,10 @@ export function buildKasBody(
     body.ownerUserId = s.owner === FAMILY_OWNER ? null : s.owner;
   }
   if (ctx.isMasterLike) {
-    body.shares = s.shares.map((userId) => ({ userId, canPost: false }));
+    body.isPrivate = s.isPrivate;
+    body.shares = s.isPrivate
+      ? []
+      : s.shares.map((userId) => ({ userId, canPost: false }));
   }
   if (mode === "add") {
     body.type = kind;

@@ -6,6 +6,7 @@ import {
 } from "@prisma/client";
 import { ASSET_CREATE_VALUATION_SOURCES } from "@wealthme/contracts";
 import {
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsIn,
@@ -179,4 +180,12 @@ export class CreateAssetDto {
 
   @FxInputsProperty()
   fxInputs?: FxInputDto[];
+
+  @ApiPropertyOptional({
+    description:
+      "Shared-with-others toggle OFF: hidden from plain members (Owner / Co-Master / admin_staff still see it).",
+  })
+  @IsOptional()
+  @IsBoolean()
+  isPrivate?: boolean;
 }

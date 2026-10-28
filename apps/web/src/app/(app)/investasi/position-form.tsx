@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { SharedToggle } from "@/components/forms/shared-toggle";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Info, Paperclip, X } from "lucide-react";
@@ -366,6 +367,10 @@ export function PositionForm({
                   </Field>
                 )}
               </div>
+              <SharedToggle
+                checked={value.shared}
+                onChange={(shared) => update({ ...value, shared })}
+              />
             </section>
             <PositionPreview
               value={value}

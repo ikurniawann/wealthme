@@ -1,4 +1,4 @@
-import { isRowScoped } from "../common/utils/privacy.util";
+import { canSeePrivateItems, isRowScoped } from "../common/utils/privacy.util";
 
 import type { TenantContext } from "../common/types/tenant-context";
 import type { ScopeSubject } from "../common/utils/privacy.util";
@@ -26,7 +26,13 @@ export function assetAccessWhere(
   member: ScopeSubject,
   userId: string | null | undefined,
 ): Prisma.AssetWhereInput {
-  if (!isRowScoped(member)) return {};
+  // "Shared with others" OFF hides the asset from everyone but Master,
+  // Co-Master and admin_staff — the owner still sees their own row.
+  const privacy: Prisma.AssetWhereInput =
+    !member || canSeePrivateItems(member)
+      ? {}
+      : { OR: [{ isPrivate: false }, { ownerUserId: userId ?? "" }] };
+  if (!isRowScoped(member)) return privacy;
   return { ownerUserId: userId ?? "" };
 }
 

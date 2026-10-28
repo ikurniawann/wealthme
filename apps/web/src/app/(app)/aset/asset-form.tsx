@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { SharedToggle } from "@/components/forms/shared-toggle";
+import { useGoldPrice } from "@/hooks/use-gold-price";
 import { CalendarDays, Coins, Tag, X } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -64,6 +66,9 @@ const NOTES_MAX = 500;
  * per category by the API); create also sends Pemilik, Harga perolehan and
  * the opening valuation's date and source.
  */
+/** Gold is weighed in grams or kilograms; totals normalise to grams. */
+const GOLD_UNITS = ["gram", "kg"] as const;
+
 export function AssetFormDialog({
   familyGroupId,
   editing,
@@ -111,6 +116,8 @@ export function AssetFormDialog({
     editing?.valuationModel ?? "total",
   );
   const [quantity, setQuantity] = useState("");
+  const [shared, setShared] = useState(!(editing?.isPrivate ?? false));
+  const [lastGoldValue, setLastGoldValue] = useState<string | null>(null);
   const [qtyError, setQtyError] = useState<string | null>(null);
   const needsQty = !editing && model === "per_unit";
   const [code, setCode] = useState(editing?.internalCode ?? "");
@@ -209,6 +216,7 @@ export function AssetFormDialog({
           acquisitionDate: acquisitionDate || undefined,
           unit: opt(unit),
           valuationModel: model,
+          isPrivate: !shared,
           ...(needsQty ? { quantity: qtyClean } : {}),
           internalCode: opt(code),
           custodian: opt(custodian),
@@ -229,6 +237,22 @@ export function AssetFormDialog({
   }
 
   const perUnit = model === "per_unit";
+  // Gold: value = weight in grams × the family gold price, until the user
+  // types a value of their own.
+  const goldPrice = useGoldPrice();
+  function followGoldPrice(nextQty: string, nextUnit: string) {
+    if (editing || type !== "emas" || !perUnit || !goldPrice.pricePerGram)
+      return;
+    if (valueField.currency !== "IDR") return;
+    const typed = moneyDigits(valueField);
+    if (typed && typed !== lastGoldValue) return;
+    const q = nextQty.trim().replace(",", ".");
+    if (!QTY_RE.test(q) || Number(q) <= 0) return;
+    const grams = Number(q) * (nextUnit === "kg" ? 1000 : 1);
+    const v = String(Math.round(grams * goldPrice.pricePerGram));
+    valueField.setRaw(v);
+    setLastGoldValue(v);
+  }
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
       <PanelContent variant="side" className="wm-form-panel as4f-panel">
@@ -275,6 +299,7 @@ export function AssetFormDialog({
                         onCustodian={setCustodian}
                       />
                       {!editing && <OwnerField s={extras} />}
+                      <SharedToggle checked={shared} onChange={setShared} />
                     </FormSection>
                     <FormSection
                       icon={Coins}
@@ -292,8 +317,13 @@ export function AssetFormDialog({
                           onQuantity={(v) => {
                             setQuantity(v);
                             if (qtyError) setQtyError(null);
+                            followGoldPrice(v, unit);
                           }}
-                          onUnit={setUnit}
+                          onUnit={(u) => {
+                            setUnit(u);
+                            followGoldPrice(quantity, u);
+                          }}
+                          unitOptions={type === "emas" ? GOLD_UNITS : undefined}
                         />
                       )}
                       <AssetValueField

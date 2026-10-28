@@ -1446,6 +1446,8 @@ model Asset {
   // every legacy row.
   investmentId       String?              @unique
   // Aset A7 — owner for row-scoped roles; null = family-level (legacy rows).
+  // "Shared with others" OFF: only Master / Co-Master / admin_staff see it.
+  isPrivate          Boolean              @default(false)
   ownerUserId        String?
   // Aset A5 — remaining quantity in `unit` (gram, unit, m², …). Null when
   // unknown: nothing is guessed from currentValue for legacy rows.
@@ -1696,6 +1698,7 @@ model Investment {
   // from the user's ticker.
   priceSymbol           String?                 @db.VarChar(64)
   // Null = family-shared, else a Member of the same family (service-checked).
+  isPrivate             Boolean                 @default(false)
   ownerUserId           String?
   platformAccountId     String?
   // Default kantong dana for buys/sells of this holding.
@@ -1895,6 +1898,7 @@ model Liability {
   dueDate               DateTime?
   autoAdvanceDueDate    Boolean                 @default(false)
   notes                 String?
+  isPrivate             Boolean                 @default(false)
   currency              String                  @default("IDR")
   // Revisi G (catalog 12) — per-product interest engine; legacy rows stay efektif.
   interestMethod        InterestMethod          @default(efektif)

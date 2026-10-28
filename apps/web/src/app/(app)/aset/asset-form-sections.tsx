@@ -108,7 +108,10 @@ export function QtyUnitPair({
   qtyError,
   onQuantity,
   onUnit,
+  unitOptions,
 }: {
+  /** Fixed choices instead of free text (gold: gram | kg). */
+  unitOptions?: readonly string[];
   showQty: boolean;
   qtyLabel: string;
   quantity: string;
@@ -149,14 +152,34 @@ export function QtyUnitPair({
           )}
         </div>
       )}
-      <TextField
-        id="asset-unit"
-        label={c.formUnit}
-        placeholder={c.formUnitPh}
-        maxLength={64}
-        value={unit}
-        onChange={onUnit}
-      />
+      {unitOptions ? (
+        <div className="field">
+          <label className="label" htmlFor="asset-unit">
+            {c.formUnit}
+          </label>
+          <select
+            id="asset-unit"
+            className="select"
+            value={unitOptions.includes(unit) ? unit : unitOptions[0]}
+            onChange={(e) => onUnit(e.target.value)}
+          >
+            {unitOptions.map((u) => (
+              <option key={u} value={u}>
+                {u}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : (
+        <TextField
+          id="asset-unit"
+          label={c.formUnit}
+          placeholder={c.formUnitPh}
+          maxLength={64}
+          value={unit}
+          onChange={onUnit}
+        />
+      )}
     </div>
   );
 }

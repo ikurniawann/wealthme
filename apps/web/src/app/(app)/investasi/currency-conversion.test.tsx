@@ -56,6 +56,7 @@ import InvestasiPage from "./page";
 const HOLDING: InvestmentDto = {
   id: "inv-1",
   familyGroupId: "fg-1",
+  isPrivate: false,
   ticker: "EMAS",
   name: "Emas Batangan",
   type: "lainnya",

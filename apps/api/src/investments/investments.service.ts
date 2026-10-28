@@ -74,6 +74,7 @@ function holdingRebuildFields(
   | "allowFraction"
   | "priceSymbol"
   | "ownerUserId"
+  | "isPrivate"
   | "platformAccountId"
   | "cashAccountId"
   | "details"
@@ -84,6 +85,7 @@ function holdingRebuildFields(
     allowFraction: inv.allowFraction,
     priceSymbol: inv.priceSymbol,
     ownerUserId: inv.ownerUserId,
+    isPrivate: inv.isPrivate,
     platformAccountId: inv.platformAccountId,
     cashAccountId: inv.cashAccountId,
     details: (inv.details ?? null) as InvestmentDto["details"],

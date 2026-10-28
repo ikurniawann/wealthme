@@ -54,7 +54,7 @@ describe("useApiError — revisi K bug 2", () => {
       message: "Service temporarily unavailable",
     });
     expect(toast.error).toHaveBeenCalledWith(
-      "Terjadi kesalahan, silakan coba lagi",
+      "Server sedang bermasalah. Coba lagi sebentar lagi.",
     );
     expect(toast.error).not.toHaveBeenCalledWith(
       expect.stringContaining("Kurs tidak tersedia"),
@@ -74,6 +74,48 @@ describe("useApiError — revisi K bug 2", () => {
     result.current.handleError({ status: 401 });
     expect(toast.error).toHaveBeenCalledWith(
       "Sesi habis, silakan login kembali",
+    );
+  });
+});
+
+// Every failure kind gets its own localized reason; a caller title stays the
+// headline and the reason moves to the description.
+describe("toastApiError — reason by failure kind", () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it.each([
+    [
+      { status: 400, message: "name must be a string" },
+      "Periksa kembali isian",
+    ],
+    [{ status: 404, message: "Asset not found" }, "Data tidak ditemukan"],
+    [{ status: 409, message: "Conflict" }, "Data bentrok"],
+    [{ status: 429, message: "Too Many Requests" }, "Terlalu banyak percobaan"],
+    [
+      { status: 500, message: "Internal server error" },
+      "Server sedang bermasalah",
+    ],
+    [new TypeError("Failed to fetch"), "Tidak ada koneksi"],
+    [
+      { status: 0, code: "TIMEOUT", message: "Request timed out" },
+      "Waktu habis",
+    ],
+  ])("maps %j to a localized reason", (error, expected) => {
+    const { result } = renderHook(() => useApiError());
+    result.current.handleError(error);
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining(expected));
+  });
+
+  it("keeps plain Indonesian server copy on a 409", () => {
+    const { result } = renderHook(() => useApiError());
+    result.current.handleError({
+      status: 409,
+      message: "Kategori ini sudah punya anggaran",
+    });
+    expect(toast.error).toHaveBeenCalledWith(
+      "Kategori ini sudah punya anggaran",
     );
   });
 });
