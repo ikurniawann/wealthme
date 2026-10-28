@@ -83,6 +83,7 @@ const TOKEN = "test-token";
 const HOLDING: InvestmentDto = {
   id: "inv-1",
   familyGroupId: FAMILY_GROUP_ID,
+  isPrivate: false,
   ticker: "EMAS",
   name: "Emas Batangan",
   type: "lainnya",

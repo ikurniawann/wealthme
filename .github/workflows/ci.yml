@@ -173,3 +173,41 @@ jobs:
           tags: ghcr.io/${{ steps.repo.outputs.path }}-web:staging-${{ github.sha }}
           cache-from: type=gha,scope=staging-web
           cache-to: type=gha,mode=max,scope=staging-web
+
+  # Staging api image, pinned by SHA (never :dev, never pulled blindly).
+  build-and-push-staging-api:
+    name: Build & push STAGING api image
+    needs: ci
+    if: startsWith(github.ref, 'refs/heads/staging/') && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lowercase repository path for GHCR
+        id: repo
+        run: echo "path=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push staging api image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./apps/api/Dockerfile
+          push: true
+          tags: ghcr.io/${{ steps.repo.outputs.path }}-api:staging-${{ github.sha }}
+          cache-from: type=gha,scope=staging-api
+          cache-to: type=gha,mode=max,scope=staging-api

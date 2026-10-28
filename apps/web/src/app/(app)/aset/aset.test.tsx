@@ -58,6 +58,9 @@ function baseAsset(overrides: Partial<AssetDto> = {}): AssetDto {
   return {
     id: "a1",
     familyGroupId: FAMILY_GROUP_ID,
+    isPrivate: false,
+    quantity: null,
+    quantityUnit: null,
     name: "Rumah Kelapa Gading",
     type: "properti",
     currentValue: "100000000",

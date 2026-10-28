@@ -1,5 +1,6 @@
 "use client";
 
+import { toastApiError } from "@/hooks/use-api-error";
 import { useId, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -121,8 +122,8 @@ export default function AssetDetailPage() {
       await uploadAssetDocument(familyGroupId, assetId, file, token);
       toast.success(t.aset.toastDocumentUploaded);
       await invalidateDocs();
-    } catch {
-      toast.error(t.aset.toastDocumentFailed);
+    } catch (err) {
+      toastApiError(err, t, t.aset.toastDocumentFailed);
     } finally {
       setUploading(false);
     }
@@ -135,8 +136,8 @@ export default function AssetDetailPage() {
       );
       toast.success(t.aset.toastDocumentDeleted);
       await invalidateDocs();
-    } catch {
-      toast.error(t.aset.toastDocumentFailed);
+    } catch (err) {
+      toastApiError(err, t, t.aset.toastDocumentFailed);
     }
   }
 
@@ -437,7 +438,7 @@ function AddHistoryDialog({
       await onSaved();
       onClose();
     },
-    onError: () => toast.error(t.aset.toastHistoryFailed),
+    onError: (err) => toastApiError(err, t, t.aset.toastHistoryFailed),
   });
 
   const canSave =

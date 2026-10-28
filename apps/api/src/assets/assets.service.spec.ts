@@ -879,4 +879,76 @@ describe("AssetsService", () => {
       expect(prisma.asset.create).not.toHaveBeenCalled();
     });
   });
+  describe("shared-with-others toggle and gold quantity", () => {
+    it("findAll hides private assets from viewers who cannot see them", async () => {
+      prisma.asset.findMany.mockResolvedValue([]);
+
+      await service.findAll(FAMILY_GROUP_ID, false);
+
+      expect(prisma.asset.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { familyGroupId: FAMILY_GROUP_ID, isPrivate: false },
+        }),
+      );
+    });
+
+    it("findAll does not filter for Master / Co-Master viewers", async () => {
+      prisma.asset.findMany.mockResolvedValue([]);
+
+      await service.findAll(FAMILY_GROUP_ID, true);
+
+      expect(prisma.asset.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { familyGroupId: FAMILY_GROUP_ID } }),
+      );
+    });
+
+    it("create stores gold quantity with its unit and isPrivate", async () => {
+      prisma.asset.create.mockImplementation(({ data }) =>
+        Promise.resolve({
+          id: ASSET_ID,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          ...data,
+          quantity: data.quantity === null ? null : new Decimal(data.quantity),
+        }),
+      );
+      prisma.assetHistory.create.mockResolvedValue({});
+
+      const result = await service.create(FAMILY_GROUP_ID, {
+        name: "Emas",
+        type: "emas",
+        currentValue: "1100000000",
+        quantity: "500",
+        quantityUnit: "gram",
+        isPrivate: true,
+      });
+
+      expect(result.quantity).toBe("500");
+      expect(result.quantityUnit).toBe("gram");
+      expect(result.isPrivate).toBe(true);
+    });
+
+    it("create drops the unit when no quantity is given", async () => {
+      prisma.asset.create.mockImplementation(({ data }) =>
+        Promise.resolve({
+          id: ASSET_ID,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          ...data,
+        }),
+      );
+      prisma.assetHistory.create.mockResolvedValue({});
+
+      const result = await service.create(FAMILY_GROUP_ID, {
+        name: "Rumah",
+        type: "properti",
+        currentValue: "1",
+        quantityUnit: "kg",
+      });
+
+      expect(result.quantity).toBeNull();
+      expect(result.quantityUnit).toBeNull();
+      expect(result.isPrivate).toBe(false);
+    });
+  });
 });

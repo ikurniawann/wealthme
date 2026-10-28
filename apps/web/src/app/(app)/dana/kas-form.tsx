@@ -1,5 +1,6 @@
 "use client";
 
+import { SharedToggle } from "@/components/forms/shared-toggle";
 import { useId, useState, type ReactNode } from "react";
 import {
   Banknote,
@@ -595,7 +596,11 @@ function KasFormBody({
             )}
 
             <Section title={c.secAccess}>
-              {isMasterLike && (
+              <SharedToggle
+                checked={!s.isPrivate}
+                onChange={(shared) => patch({ isPrivate: !shared })}
+              />
+              {isMasterLike && !s.isPrivate && (
                 <Field
                   id={`${uid}-share`}
                   label={

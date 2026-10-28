@@ -81,6 +81,7 @@ const t = mockDictionary.anggaran;
 const DUE_LIABILITY: LiabilityDto = {
   id: "liab-1",
   familyGroupId: FAMILY_GROUP_ID,
+  isPrivate: false,
   name: "KTA BNI",
   institution: "BNI",
   type: "pinjaman_pribadi",

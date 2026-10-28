@@ -1,5 +1,6 @@
 "use client";
 
+import { toastApiError } from "@/hooks/use-api-error";
 import {
   useState,
   useEffect,
@@ -1125,7 +1126,7 @@ export function EditTransactionDialog({
       toast.success(t.transaksi.toastUpdated);
       onSaved();
     },
-    onError: () => toast.error(t.transaksi.toastUpdateFailed),
+    onError: (err) => toastApiError(err, t, t.transaksi.toastUpdateFailed),
   });
 
   if (!tx) return null;
@@ -1518,8 +1519,8 @@ function TransaksiPageInner() {
       });
       toast.success(t.transaksi.toastDeleted);
     },
-    onError: () => {
-      toast.error(t.transaksi.toastDeleteFailed);
+    onError: (err) => {
+      toastApiError(err, t, t.transaksi.toastDeleteFailed);
     },
   });
 

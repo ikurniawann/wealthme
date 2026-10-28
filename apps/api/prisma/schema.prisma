@@ -1259,6 +1259,14 @@ model Asset {
   // of a new table; the hardcoded `type` enum above remains as a fallback
   // display value when no category is set.
   categoryId         String?
+  // "Shared with others" toggle: OFF hides the asset from plain members;
+  // Owner / Co-Master / admin_staff always see it (see privacy.util.ts).
+  isPrivate          Boolean              @default(false)
+  // Physical quantity (gold only for now). Stored as entered with its unit so
+  // the form round-trips; totals normalise to grams (kg x 1000).
+  quantity           Decimal?             @db.Decimal(24, 8)
+  // Column is `unit` (shared with the aset-foundation schema on staging).
+  quantityUnit       String?              @map("unit") @db.VarChar(64)
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
   familyGroup        FamilyGroup          @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
@@ -1343,6 +1351,7 @@ model Investment {
   purchasedAt           DateTime?
   maturityDate          DateTime?
   cryptoExchange        CryptoExchangeKind?
+  isPrivate             Boolean                 @default(false)
   createdAt             DateTime                @default(now())
   updatedAt             DateTime                @updatedAt
   familyGroup           FamilyGroup             @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
@@ -1438,6 +1447,7 @@ model Liability {
   dueDate               DateTime?
   autoAdvanceDueDate    Boolean                 @default(false)
   notes                 String?
+  isPrivate             Boolean                 @default(false)
   currency              String                  @default("IDR")
   // Revisi G (catalog 12) — per-product interest engine; legacy rows stay efektif.
   interestMethod        InterestMethod          @default(efektif)

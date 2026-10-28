@@ -25,6 +25,7 @@ import {
   DialogTitle,
   PanelContent,
 } from "@/components/ui/dialog";
+import { SharedToggle } from "@/components/forms/shared-toggle";
 import { Switch } from "@/components/ui/switch";
 import { DateField, PillButton } from "@/components/wm";
 import {
@@ -893,31 +894,14 @@ function AccountFormBody({
 
             {/* 5 — Access */}
             <Section n={5} title={c.form.secAccess}>
-              {isMasterLike && (
-                <ToggleRow
-                  label={c.form.familyShared}
-                  hint={
-                    s.familyShared
-                      ? c.form.familySharedHint
-                      : fill(c.form.ownedBy, {
-                          name:
-                            holderMember?.name ??
-                            members.find((m) => m.userId === myUserId)?.name ??
-                            "—",
-                        })
-                  }
-                  checked={s.familyShared}
-                  onChange={(v) =>
-                    setS((p) => ({ ...p, familyShared: v, ownerTouched: true }))
-                  }
-                />
-              )}
-              {isMasterLike && (
+              <SharedToggle
+                checked={!s.isPrivate}
+                onChange={(shared) => set("isPrivate", !shared)}
+              />
+              {isMasterLike && !s.isPrivate && (
                 <div className="field">
                   <span className="label">{c.form.sharedWith}</span>
-                  {s.isPrivate ? (
-                    <p className="hint">{c.form.sharedWithPrivate}</p>
-                  ) : shareable.length === 0 ? (
+                  {shareable.length === 0 ? (
                     <p className="hint">{c.form.sharedWithNone}</p>
                   ) : (
                     <ul className="rkf-people">
@@ -958,12 +942,6 @@ function AccountFormBody({
                   <span className="hint block">{c.form.sharedWithHint}</span>
                 </div>
               )}
-              <ToggleRow
-                label={c.form.privateLabel}
-                hint={c.form.privateHint}
-                checked={s.isPrivate}
-                onChange={(v) => set("isPrivate", v)}
-              />
               <Seg
                 label={c.form.status}
                 value={s.status}

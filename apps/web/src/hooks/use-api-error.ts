@@ -2,10 +2,10 @@
 
 import { useCallback } from "react";
 import { toast } from "sonner";
-import { extractApiErrorMessage } from "@/components/money";
+import { extractApiErrorMessage } from "@/components/money/fx-inputs";
 import { useLocale } from "@/hooks/use-locale";
 import type { ApiError } from "@/lib/api-client";
-import { apiErrorMessage } from "@/lib/api-error";
+import { describeApiError, type ApiErrorCopy } from "@/lib/api-error";
 
 /**
  * A2 (revisi-2) — "no technical junk in front of the user": this is the
@@ -38,25 +38,32 @@ export function friendlyServerMessage(
   return TECHNICAL_PATTERN.test(text) ? null : text;
 }
 
+type ApiErrorT = {
+  common: { apiError: ApiErrorCopy };
+  money: { fxIndicativeRefused: string };
+};
+
+/**
+ * Toast an API failure. `title` keeps the toast specific to the action
+ * ("Failed to save the asset"); the localized reason goes underneath. Usable
+ * from any `onError` callback that has `t` in scope.
+ */
+export function toastApiError(error: unknown, t: ApiErrorT, title?: string) {
+  console.error("[api] request failed:", error);
+  const reason =
+    extractApiErrorMessage(error, t) ??
+    describeApiError(error, t.common.apiError);
+  if (title && title !== reason) {
+    toast.error(title, { description: reason });
+    return;
+  }
+  toast.error(title ?? reason);
+}
+
 export function useApiError() {
   const { t } = useLocale();
   const handleError = useCallback(
-    (error: unknown) => {
-      const apiError = error as Partial<ApiError>;
-      console.error("[api] request failed:", error);
-      const fallback =
-        apiError.status === 401
-          ? t.common.apiError.sessionExpired
-          : apiError.status === 403
-            ? t.common.apiError.accessDenied
-            : t.common.apiError.generic;
-      const message =
-        extractApiErrorMessage(apiError, t) ??
-        (friendlyServerMessage(apiError) === null
-          ? fallback
-          : apiErrorMessage(error, fallback));
-      toast.error(message);
-    },
+    (error: unknown) => toastApiError(error, t),
     [t],
   );
 

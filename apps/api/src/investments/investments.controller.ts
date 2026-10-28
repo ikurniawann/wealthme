@@ -28,6 +28,7 @@ import { type Request as ExpressRequest } from "express";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { PageAccess } from "../common/decorators/page-access.decorator";
 import { BalancesVisibleGuard } from "../common/guards/balances-visible.guard";
+import { canSeePrivateItems } from "../common/utils/privacy.util";
 import { FX_FIELD_SPECS } from "../fx/fx-field-specs";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { FxInputService } from "../fx/fx-input.service";
@@ -62,7 +63,10 @@ export class InvestmentsController {
   findAll(
     @Request() req: ExpressRequest & { params: { familyGroupId: string } },
   ): Promise<InvestmentDto[]> {
-    return this.investmentsService.findAll(req.params.familyGroupId);
+    return this.investmentsService.findAll(
+      req.params.familyGroupId,
+      canSeePrivateItems(req.tenantContext?.member?.role),
+    );
   }
 
   @Get("summary")

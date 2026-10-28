@@ -15,6 +15,8 @@ export type AssetTypeId =
 // computeEstimatedValue applies.
 export type AssetValueChangeMode = "percent" | "fixed";
 
+export type QuantityUnit = "gram" | "kg";
+
 export interface AssetDto {
   id: string;
   familyGroupId: string;
@@ -23,6 +25,11 @@ export interface AssetDto {
   currentValue: string;
   currency: string;
   notes: string | null;
+  // "Shared with others" OFF: hidden from plain members.
+  isPrivate: boolean;
+  // Physical quantity (gold weight) with its unit; null when not tracked.
+  quantity: string | null;
+  quantityUnit: QuantityUnit | null;
   // EPIC-021 #17/#18: signed annual value-change rate (%), negative =
   // depreciation, positive = appreciation. Null = no rate set.
   valueChangeRatePct: string | null;
@@ -92,6 +99,9 @@ export interface CreateAssetDto {
   currentValue: string;
   currency?: string;
   notes?: string;
+  isPrivate?: boolean;
+  quantity?: string | null;
+  quantityUnit?: QuantityUnit | null;
   valueChangeRatePct?: string;
   valueChangeMode?: AssetValueChangeMode;
   valueChangeAmount?: string;
@@ -107,6 +117,9 @@ export interface UpdateAssetDto {
   currentValue?: string;
   currency?: string;
   notes?: string;
+  isPrivate?: boolean;
+  quantity?: string | null;
+  quantityUnit?: QuantityUnit | null;
   valueChangeRatePct?: string;
   valueChangeMode?: AssetValueChangeMode;
   valueChangeAmount?: string;

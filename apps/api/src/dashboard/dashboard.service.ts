@@ -93,7 +93,10 @@ export class DashboardService {
     const assetsList = isRestricted
       ? []
       : await this.prisma.asset.findMany({
-          where: { familyGroupId },
+          where: {
+            familyGroupId,
+            ...(canSeePrivate ? {} : { isPrivate: false }),
+          },
           select: { currentValue: true },
         });
     const assetsTotalBigInt = assetsList.reduce(
@@ -348,7 +351,10 @@ export class DashboardService {
     const assets = isRestricted
       ? []
       : await this.prisma.asset.findMany({
-          where: { familyGroupId },
+          where: {
+            familyGroupId,
+            ...(canSeePrivate ? {} : { isPrivate: false }),
+          },
           select: { currentValue: true },
         });
     const totalAssets = assets.reduce((sum, a) => sum + a.currentValue, 0n);
@@ -362,7 +368,10 @@ export class DashboardService {
     const investments = isRestricted
       ? []
       : await this.prisma.investment.findMany({
-          where: { familyGroupId },
+          where: {
+            familyGroupId,
+            ...(canSeePrivate ? {} : { isPrivate: false }),
+          },
           select: {
             type: true,
             quantity: true,
@@ -386,7 +395,10 @@ export class DashboardService {
     const liabilityRecords = isRestricted
       ? []
       : await this.prisma.liability.findMany({
-          where: { familyGroupId },
+          where: {
+            familyGroupId,
+            ...(canSeePrivate ? {} : { isPrivate: false }),
+          },
           select: { remainingBalance: true },
         });
     const totalLiabilities = liabilityRecords.reduce(

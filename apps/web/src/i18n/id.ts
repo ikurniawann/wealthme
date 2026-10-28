@@ -21,6 +21,11 @@ export const id = {
     evening: "Selamat malam",
   },
   common: {
+    sharing: {
+      label: "Dibagikan ke anggota lain",
+      onHint: "Anggota keluarga yang punya akses bisa melihatnya.",
+      offHint: "Hanya Master & Co-Master yang bisa melihatnya.",
+    },
     percentRangeError: "Isi persen antara 0 dan 100",
     emojiSearchPlaceholder: "Cari ikon… (cth: rumah, mobil, sekolah)",
     emojiNoResults: "Ikon tidak ditemukan. Coba kata lain.",
@@ -107,6 +112,13 @@ export const id = {
       accessDenied: "Tidak memiliki akses",
       generic: "Terjadi kesalahan, silakan coba lagi",
       timeout: "Waktu habis, coba lagi",
+      validation: "Periksa kembali isian Anda, ada data yang belum sesuai.",
+      notFound: "Data tidak ditemukan. Mungkin sudah dihapus.",
+      conflict:
+        "Data bentrok dengan data yang sudah ada atau baru saja berubah.",
+      rateLimited: "Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.",
+      server: "Server sedang bermasalah. Coba lagi sebentar lagi.",
+      network: "Tidak ada koneksi ke server. Periksa internet Anda.",
     },
   },
   beranda: {
@@ -2396,6 +2408,15 @@ export const id = {
     fieldNamePlaceholder: "cth. Apartemen Kelapa Gading",
     fieldCategoryLabel: "Kategori",
     fieldValueLabel: "Nilai Aset",
+    fieldQuantityLabel: "Jumlah",
+    fieldQuantityUnitLabel: "Satuan",
+    quantityUnitGram: "gram",
+    quantityUnitKg: "kg",
+    fieldQuantityAutoHint:
+      "Nilai = jumlah × harga emas keluarga ({price} per gram).",
+    fieldQuantityNoPriceHint:
+      "Atur harga emas di Pengaturan agar nilai terisi otomatis.",
+    goldTotalLabel: "Total emas",
     fieldValuePlaceholder: "cth. 200.000.000",
     fieldValueChangeRateLabel: "Perubahan Nilai per Tahun (%)",
     fieldValueChangeRatePlaceholder:

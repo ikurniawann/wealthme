@@ -1,3 +1,4 @@
+import { toastApiError } from "@/hooks/use-api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api-client";
@@ -137,8 +138,8 @@ export function useExportJob({
         pollRef.current = setInterval(() => {
           void pollStatus(res.id);
         }, 2000);
-      } catch {
-        toast.error(t.laporan.export.toastExportCreateFailed);
+      } catch (err) {
+        toastApiError(err, t, t.laporan.export.toastExportCreateFailed);
       } finally {
         setIsSubmitting(false);
       }

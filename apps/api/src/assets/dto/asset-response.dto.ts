@@ -45,6 +45,15 @@ export class AssetResponseDto {
   currentEstimatedValue!: string;
   @ApiProperty() createdAt!: string;
   @ApiProperty() updatedAt!: string;
+
+  @ApiProperty()
+  isPrivate!: boolean;
+
+  @ApiProperty({ nullable: true, type: String })
+  quantity!: string | null;
+
+  @ApiProperty({ nullable: true, enum: ["gram", "kg"] })
+  quantityUnit!: "gram" | "kg" | null;
 }
 
 export class AssetAttachmentResponseDto {

@@ -1,5 +1,6 @@
 "use client";
 
+import { toastApiError } from "@/hooks/use-api-error";
 import { useMemo, useState } from "react";
 import { Plus, X, Link2, TriangleAlert, Trash2 } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
@@ -427,10 +428,8 @@ export default function SplitBillPage() {
       toast.success(t.splitbill.toastPayoutAccountUpdated);
       setEditPayoutOpen(false);
     },
-    onError: (err: { message?: string }) => {
-      toast.error(
-        err.message ?? t.splitbill.toastPayoutAccountUpdateFailedDefault,
-      );
+    onError: (err: unknown) => {
+      toastApiError(err, t, t.splitbill.toastPayoutAccountUpdateFailedDefault);
     },
   });
 

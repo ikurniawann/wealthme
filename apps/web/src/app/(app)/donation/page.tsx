@@ -47,7 +47,7 @@ import {
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { formatManualDate } from "@/components/consolidated-total-card";
-import { useApiError } from "@/hooks/use-api-error";
+import { toastApiError, useApiError } from "@/hooks/use-api-error";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
   FAMILY_RELIGION_OPTIONS,
@@ -640,8 +640,10 @@ export default function DonationPage() {
                                   toast.success(
                                     t.akun.pengaturan.toastReligionUpdated,
                                   ),
-                                onError: () =>
-                                  toast.error(
+                                onError: (err) =>
+                                  toastApiError(
+                                    err,
+                                    t,
                                     t.akun.pengaturan.toastReligionFailed,
                                   ),
                               });

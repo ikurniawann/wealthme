@@ -1,5 +1,6 @@
 "use client";
 
+import { apiErrorMessage } from "@/lib/api-error";
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Send } from "lucide-react";
@@ -35,7 +36,15 @@ export default function LupaPasswordPage() {
         redirectTo: "/reset-password",
       });
       if (result.error) {
-        toast.error(result.error.message ?? "Gagal mengirim email reset");
+        toast.error(
+          apiErrorMessage(
+            {
+              status: result.error.status ?? 400,
+              message: result.error.message,
+            },
+            "Gagal mengirim email reset",
+          ),
+        );
         return;
       }
       setSent(true);

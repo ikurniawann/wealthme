@@ -1,5 +1,6 @@
 "use client";
 
+import { apiErrorMessage } from "@/lib/api-error";
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -95,7 +96,15 @@ function ResetPasswordForm() {
         token,
       });
       if (result.error) {
-        toast.error(result.error.message ?? "Gagal mereset password");
+        toast.error(
+          apiErrorMessage(
+            {
+              status: result.error.status ?? 400,
+              message: result.error.message,
+            },
+            "Gagal mereset password",
+          ),
+        );
         return;
       }
       toast.success("Password berhasil direset! Silakan login.");

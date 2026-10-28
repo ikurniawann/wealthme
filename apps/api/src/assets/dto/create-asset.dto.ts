@@ -1,6 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { AssetType, AssetValueChangeMode } from "@prisma/client";
 import {
+  IsBoolean,
+  IsIn,
   IsDateString,
   IsEnum,
   IsOptional,
@@ -93,4 +95,27 @@ export class CreateAssetDto {
 
   @FxInputsProperty()
   fxInputs?: FxInputDto[];
+
+  @ApiPropertyOptional({
+    description:
+      "Shared-with-others toggle OFF: hidden from plain members (Owner / Co-Master / admin_staff still see it).",
+  })
+  @IsOptional()
+  @IsBoolean()
+  isPrivate?: boolean;
+
+  @ApiPropertyOptional({
+    description: "Physical quantity as a decimal string (gold: weight).",
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{1,12}(\.\d{1,6})?$/, {
+    message: "quantity must be a non-negative decimal string, e.g. '5.5'",
+  })
+  quantity?: string | null;
+
+  @ApiPropertyOptional({ enum: ["gram", "kg"] })
+  @IsOptional()
+  @IsIn(["gram", "kg"])
+  quantityUnit?: "gram" | "kg" | null;
 }

@@ -78,9 +78,12 @@ export class InvestmentsService {
     @Inject(MARKET_DATA_PORT) private readonly marketData: MarketDataPort,
   ) {}
 
-  async findAll(familyGroupId: string): Promise<InvestmentDto[]> {
+  async findAll(
+    familyGroupId: string,
+    canSeePrivate = true,
+  ): Promise<InvestmentDto[]> {
     const investments = await this.prisma.investment.findMany({
-      where: { familyGroupId },
+      where: { familyGroupId, ...(canSeePrivate ? {} : { isPrivate: false }) },
       orderBy: { createdAt: "asc" },
       include: {
         prices: {
@@ -249,6 +252,7 @@ export class InvestmentsService {
             returnPct !== null ? Math.round(returnPct * 100) / 100 : null,
           currency: inv.currency,
           notes: inv.notes,
+          isPrivate: inv.isPrivate,
           // EPIC-024 C3 (D10) — deposito's "price" is a live-computed
           // simple-interest value, never a stored InvestmentPrice row: its
           // provenance fields are synthesized ("computed-interest",
@@ -354,6 +358,7 @@ export class InvestmentsService {
         costBasisPerUnit: new Decimal(dto.costBasisPerUnit),
         currency: dto.currency ?? "IDR",
         notes: dto.notes ?? null,
+        isPrivate: dto.isPrivate ?? false,
         interestRatePct: dto.interestRatePct ?? null,
         purchasedAt: dto.purchasedAt ? new Date(dto.purchasedAt) : null,
         maturityDate: dto.maturityDate ? new Date(dto.maturityDate) : null,
@@ -378,6 +383,7 @@ export class InvestmentsService {
       returnPct: null,
       currency: investment.currency,
       notes: investment.notes,
+      isPrivate: investment.isPrivate,
       latestPriceRecordedAt: null,
       latestPriceSource: null,
       latestPriceAsOf: null,
@@ -456,6 +462,7 @@ export class InvestmentsService {
           : existing.costBasisPerUnit,
         currency: dto.currency ?? existing.currency,
         notes: dto.notes !== undefined ? (dto.notes ?? null) : existing.notes,
+        isPrivate: dto.isPrivate ?? existing.isPrivate,
         interestRatePct:
           dto.interestRatePct !== undefined
             ? dto.interestRatePct
@@ -485,6 +492,7 @@ export class InvestmentsService {
       returnPct: null,
       currency: updated.currency,
       notes: updated.notes,
+      isPrivate: updated.isPrivate,
       latestPriceRecordedAt: null,
       latestPriceSource: null,
       latestPriceAsOf: null,

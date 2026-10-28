@@ -1,5 +1,6 @@
 "use client";
 
+import { apiErrorMessage } from "@/lib/api-error";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -114,7 +115,15 @@ export default function RegisterPage() {
         ) {
           toast.error("Email sudah terdaftar");
         } else {
-          toast.error(result.error.message ?? "Registrasi gagal");
+          toast.error(
+            apiErrorMessage(
+              {
+                status: result.error.status ?? 400,
+                message: result.error.message,
+              },
+              "Registrasi gagal",
+            ),
+          );
         }
         return;
       }
@@ -122,11 +131,7 @@ export default function RegisterPage() {
       toast.success("Akun berhasil dibuat! Masuk sekarang.");
       router.push("/beranda");
     } catch (err) {
-      toast.error(
-        err instanceof Error
-          ? err.message
-          : "Terjadi kesalahan saat registrasi",
-      );
+      toast.error(apiErrorMessage(err, "Terjadi kesalahan saat registrasi"));
     } finally {
       setLoading(false);
     }

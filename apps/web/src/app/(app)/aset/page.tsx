@@ -1,6 +1,9 @@
 "use client";
 
+import { toastApiError } from "@/hooks/use-api-error";
 import { useEffect, useState } from "react";
+import { SharedToggle } from "@/components/forms/shared-toggle";
+import { useGoldPrice } from "@/hooks/use-gold-price";
 import "./aset.css";
 import Link from "next/link";
 import {
@@ -243,6 +246,29 @@ function AddAssetModal({
     isEdit: !!editing,
   });
   const [notes, setNotes] = useState(editing?.notes ?? "");
+  const [shared, setShared] = useState(!(editing?.isPrivate ?? false));
+  // Gold is tracked by weight so holdings can be totalled (5 g + 500 g = 505 g).
+  const [quantity, setQuantity] = useState(editing?.quantity ?? "");
+  const [quantityUnit, setQuantityUnit] = useState<"gram" | "kg">(
+    editing?.quantityUnit ?? "gram",
+  );
+  const goldPrice = useGoldPrice();
+  const isGold = type === "emas";
+  const quantityGrams = (() => {
+    const n = Number(quantity.replace(",", "."));
+    if (!isGold || !Number.isFinite(n) || n <= 0) return 0;
+    return quantityUnit === "kg" ? n * 1000 : n;
+  })();
+  const autoGoldValue =
+    quantityGrams > 0 && goldPrice.pricePerGram
+      ? Math.round(quantityGrams * goldPrice.pricePerGram)
+      : null;
+  // Value follows quantity × family gold price while a price is set; the
+  // field stays editable for a manual override.
+  useEffect(() => {
+    if (autoGoldValue !== null) valueField.setRaw(String(autoGoldValue));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoGoldValue]);
   const [valueChangeRatePct, setValueChangeRatePct] = useState(
     editing?.valueChangeRatePct ?? "",
   );
@@ -279,6 +305,9 @@ function AddAssetModal({
       valueChangeAmount?: string;
       categoryId?: string;
       acquisitionDate?: string;
+      isPrivate?: boolean;
+      quantity?: string | null;
+      quantityUnit?: "gram" | "kg" | null;
       fxInputs?: FxInput[];
     }) => {
       if (!token || !familyGroupId) {
@@ -299,8 +328,8 @@ function AddAssetModal({
       if (docFile) {
         try {
           await uploadAssetDocument(familyGroupId, created.id, docFile, token);
-        } catch {
-          toast.error(t.aset.toastDocumentFailed);
+        } catch (err) {
+          toastApiError(err, t, t.aset.toastDocumentFailed);
         }
       }
       void queryClient.invalidateQueries({
@@ -312,8 +341,12 @@ function AddAssetModal({
       toast.success(editing ? t.aset.toastUpdated : t.aset.toastAdded);
       onClose();
     },
-    onError: () => {
-      toast.error(editing ? t.aset.toastUpdateFailed : t.aset.toastAddFailed);
+    onError: (err) => {
+      toastApiError(
+        err,
+        t,
+        editing ? t.aset.toastUpdateFailed : t.aset.toastAddFailed,
+      );
     },
   });
 
@@ -373,6 +406,19 @@ function AddAssetModal({
               : undefined,
           categoryId: categoryId || undefined,
           acquisitionDate: acquisitionDate || undefined,
+          isPrivate: !shared,
+          // Only gold is weighed here; other types keep whatever the
+          // asset already stores (omitted, not nulled).
+          quantity: isGold
+            ? quantityGrams > 0
+              ? quantity.replace(",", ".")
+              : null
+            : undefined,
+          quantityUnit: isGold
+            ? quantityGrams > 0
+              ? quantityUnit
+              : null
+            : undefined,
         },
         [
           ["currentValue", valueField],
@@ -462,6 +508,45 @@ function AddAssetModal({
                   placeholder={t.aset.fieldValuePlaceholder}
                 />
               </div>
+
+              {isGold && (
+                <div className="field">
+                  <label className="label" htmlFor="asset-quantity">
+                    {t.aset.fieldQuantityLabel}
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      id="asset-quantity"
+                      className="input flex-1"
+                      inputMode="decimal"
+                      placeholder="0"
+                      value={quantity}
+                      onChange={(e) =>
+                        setQuantity(e.target.value.replace(/[^\d.,]/g, ""))
+                      }
+                    />
+                    <select
+                      className="select w-24"
+                      aria-label={t.aset.fieldQuantityUnitLabel}
+                      value={quantityUnit}
+                      onChange={(e) =>
+                        setQuantityUnit(e.target.value as "gram" | "kg")
+                      }
+                    >
+                      <option value="gram">{t.aset.quantityUnitGram}</option>
+                      <option value="kg">{t.aset.quantityUnitKg}</option>
+                    </select>
+                  </div>
+                  <span className="hint">
+                    {goldPrice.pricePerGram
+                      ? t.aset.fieldQuantityAutoHint.replace(
+                          "{price}",
+                          money.format(goldPrice.pricePerGram),
+                        )
+                      : t.aset.fieldQuantityNoPriceHint}
+                  </span>
+                </div>
+              )}
 
               {/* Same shared segmented-control markup as Splitbill's
                 "Bagi Rata"/"Custom per Orang" toggle, not a bespoke
@@ -578,6 +663,8 @@ function AddAssetModal({
                   </span>
                 </div>
               )}
+
+              <SharedToggle checked={shared} onChange={setShared} />
 
               <div className="field">
                 <label className="label" htmlFor="asset-document">
@@ -702,8 +789,8 @@ function AssetTile({
       });
       toast.success(t.aset.toastValueAdopted);
     },
-    onError: () => {
-      toast.error(t.aset.toastValueAdoptFailed);
+    onError: (err) => {
+      toastApiError(err, t, t.aset.toastValueAdoptFailed);
     },
   });
 
@@ -859,8 +946,8 @@ export default function AsetPage() {
       });
       toast.success(t.aset.toastDeleted);
     },
-    onError: () => {
-      toast.error(t.aset.toastDeleteFailed);
+    onError: (err) => {
+      toastApiError(err, t, t.aset.toastDeleteFailed);
     },
     onSettled: () => {
       setDeletingAsset(null);
@@ -1014,6 +1101,18 @@ export default function AsetPage() {
   );
   const grandTotal =
     Number(accountsTotalBig + assetsTotalBig) + investmentsTotal;
+
+  // Gold held by weight, normalised to grams (kg x 1000) so entries add up.
+  const totalGoldGrams = (assets ?? []).reduce((sum, a) => {
+    if (a.type !== "emas" || !a.quantity) return sum;
+    const n = Number(a.quantity);
+    if (!Number.isFinite(n)) return sum;
+    return sum + (a.quantityUnit === "kg" ? n * 1000 : n);
+  }, 0);
+  const totalGoldLabel =
+    totalGoldGrams > 0
+      ? ` · ${t.aset.goldTotalLabel}: ${new Intl.NumberFormat(locale, { maximumFractionDigits: 3 }).format(totalGoldGrams)} gr`
+      : "";
 
   const isLoading = assetsLoading || accountsLoading || investmentsLoading;
   const isPageError = assetsError || accountsError || investmentsError;
@@ -1287,7 +1386,7 @@ export default function AsetPage() {
         <BentoCard
           className="as-fisik"
           title={t.aset.physicalAssetsTitle}
-          caption={`${(assets ?? []).length > 0 ? `${(assets ?? []).length} · ` : ""}${t.aset.v2.fisikCaption}`}
+          caption={`${(assets ?? []).length > 0 ? `${(assets ?? []).length} · ` : ""}${t.aset.v2.fisikCaption}${totalGoldLabel}`}
         >
           {hasError && (
             <p role="alert" className="as-error">

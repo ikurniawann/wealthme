@@ -69,6 +69,7 @@ function baseLiability(overrides: Partial<LiabilityDto> = {}): LiabilityDto {
   return {
     id: "liab-1",
     familyGroupId: FAMILY_GROUP_ID,
+    isPrivate: false,
     name: "Kartu Kredit BCA",
     institution: "BCA",
     type: "kartu_kredit",

@@ -61,6 +61,7 @@ import { InvestmentTaxCard } from "@/components/tax/investment-tax-card";
 import { useLocale } from "@/hooks/use-locale";
 import { useApiError } from "@/hooks/use-api-error";
 import { useCanManage } from "@/hooks/use-role-permissions";
+import { SharedToggle } from "@/components/forms/shared-toggle";
 import { useGoldPrice } from "@/hooks/use-gold-price";
 import { useMoney } from "@/hooks/use-money";
 import { apiFetch } from "@/lib/api-client";
@@ -200,6 +201,8 @@ interface AddInvestmentForm {
   // manual price is known (matches the family gold price's "unset" state).
   manualPrice: string;
   manualPriceDate: string;
+  // "Shared with others" toggle (OFF = only Master & Co-Master).
+  shared: boolean;
 }
 
 /** yyyy-mm-dd for a DateField value, or "" when absent. */
@@ -605,6 +608,7 @@ function AddInvestmentModal({
           maturityDate: toDateInputValue(editing.maturityDate),
           manualPrice: "",
           manualPriceDate: "",
+          shared: !(editing.isPrivate ?? false),
         }
       : {
           ticker: "",
@@ -620,6 +624,7 @@ function AddInvestmentModal({
           maturityDate: "",
           manualPrice: "",
           manualPriceDate: "",
+          shared: true,
         },
   );
   // EPIC-024 C1 (D8) — an automated-type holding whose ticker has no live
@@ -737,6 +742,7 @@ function AddInvestmentModal({
         ticker: form.ticker,
         name: form.name,
         type: form.type,
+        isPrivate: !form.shared,
       };
       // EPIC-022 D2 retry (HIGH) — the server now REJECTS an update that
       // touches quantity/costBasisPerUnit for a lot-tracked holding (they
@@ -1218,6 +1224,10 @@ function AddInvestmentModal({
                   </span>
                 </div>
               )}
+              <SharedToggle
+                checked={form.shared}
+                onChange={(shared) => setForm((prev) => ({ ...prev, shared }))}
+              />
             </div>
           </div>
 

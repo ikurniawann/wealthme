@@ -1,5 +1,6 @@
 "use client";
 
+import { toastApiError } from "@/hooks/use-api-error";
 import { roundedShares } from "@/lib/shares";
 import { useState } from "react";
 import {
@@ -741,7 +742,8 @@ export default function WarisanPage() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: listKey ?? [] });
     },
-    onError: () => toast.error(t.warisan.toastVisibilityUpdateFailed),
+    onError: (err) =>
+      toastApiError(err, t, t.warisan.toastVisibilityUpdateFailed),
   });
 
   const deleteMutation = useMutation({
@@ -755,7 +757,7 @@ export default function WarisanPage() {
       toast.success(t.warisan.toastDeleted);
       setDeleteTarget(null);
     },
-    onError: () => toast.error(t.warisan.toastDeleteFailed),
+    onError: (err) => toastApiError(err, t, t.warisan.toastDeleteFailed),
   });
 
   function resetForm() {

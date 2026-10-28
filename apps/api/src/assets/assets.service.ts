@@ -105,6 +105,9 @@ function toAssetDto(asset: {
   valueChangeAmount: bigint | null;
   categoryId: string | null;
   acquisitionDate: Date | null;
+  isPrivate: boolean;
+  quantity: Decimal | null;
+  quantityUnit: string | null;
   createdAt: Date;
   updatedAt: Date;
 }): AssetResponseDto {
@@ -121,6 +124,9 @@ function toAssetDto(asset: {
     valueChangeAmount: asset.valueChangeAmount?.toString() ?? null,
     categoryId: asset.categoryId,
     acquisitionDate: asset.acquisitionDate?.toISOString() ?? null,
+    isPrivate: asset.isPrivate,
+    quantity: asset.quantity?.toString() ?? null,
+    quantityUnit: (asset.quantityUnit as "gram" | "kg" | null) ?? null,
     currentEstimatedValue: computeEstimatedValue(
       asset.currentValue,
       asset.valueChangeRatePct,
@@ -167,9 +173,12 @@ function toHistoryDto(
 export class AssetsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(familyGroupId: string): Promise<AssetResponseDto[]> {
+  async findAll(
+    familyGroupId: string,
+    canSeePrivate = true,
+  ): Promise<AssetResponseDto[]> {
     const assets = await this.prisma.asset.findMany({
-      where: { familyGroupId },
+      where: { familyGroupId, ...(canSeePrivate ? {} : { isPrivate: false }) },
       orderBy: { createdAt: "asc" },
     });
     return assets.map(toAssetDto);
@@ -208,6 +217,9 @@ export class AssetsService {
         acquisitionDate: dto.acquisitionDate
           ? new Date(dto.acquisitionDate)
           : null,
+        isPrivate: dto.isPrivate ?? false,
+        quantity: dto.quantity ?? null,
+        quantityUnit: dto.quantity ? (dto.quantityUnit ?? "gram") : null,
       },
     });
 
@@ -276,6 +288,17 @@ export class AssetsService {
               ? new Date(dto.acquisitionDate)
               : null
             : existing.acquisitionDate,
+        isPrivate: dto.isPrivate ?? existing.isPrivate,
+        quantity:
+          dto.quantity !== undefined
+            ? (dto.quantity ?? null)
+            : existing.quantity,
+        quantityUnit:
+          dto.quantity !== undefined
+            ? dto.quantity
+              ? (dto.quantityUnit ?? existing.quantityUnit ?? "gram")
+              : null
+            : (dto.quantityUnit ?? existing.quantityUnit),
       },
     });
 

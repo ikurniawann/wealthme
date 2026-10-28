@@ -1,5 +1,6 @@
 "use client";
 
+import { toastApiError } from "@/hooks/use-api-error";
 import {
   cloneElement,
   isValidElement,
@@ -145,7 +146,6 @@ import {
   type AccountTabId,
 } from "./account-tabs";
 import { localIsoDate } from "@/lib/local-date";
-import { apiErrorMessage as extractApiErrorMessage } from "@/lib/api-error";
 
 type SubPageId =
   | "profil"
@@ -719,7 +719,11 @@ export function KeamananBody() {
         newPassword: newPw,
       });
       if (error) {
-        toast.error(error.message ?? t.akun.keamanan.toastChangeFailed);
+        toastApiError(
+          { status: 400, message: error.message },
+          t,
+          t.akun.keamanan.toastChangeFailed,
+        );
       } else {
         toast.success(t.akun.keamanan.toastChangeSuccess);
         setShowChangePw(false);
@@ -727,8 +731,8 @@ export function KeamananBody() {
         setNewPw("");
         setConfirmPw("");
       }
-    } catch {
-      toast.error(t.akun.keamanan.toastChangeFailed);
+    } catch (err) {
+      toastApiError(err, t, t.akun.keamanan.toastChangeFailed);
     } finally {
       setPwLoading(false);
     }
@@ -778,7 +782,8 @@ export function KeamananBody() {
       });
       toast.success(t.akun.keamanan.toastSessionEnded);
     },
-    onError: () => toast.error(t.akun.keamanan.toastSessionEndFailed),
+    onError: (err) =>
+      toastApiError(err, t, t.akun.keamanan.toastSessionEndFailed),
   });
 
   // Notifikasi Login Baru + Konfirmasi Transaksi Besar — real persisted prefs
@@ -813,9 +818,9 @@ export function KeamananBody() {
             });
             toast.success(t.akun.keamanan.toastAuthPrefsSaved);
           },
-          onError: () => {
+          onError: (err) => {
             setAuthOverrides((o) => ({ ...o, [key]: previous }));
-            toast.error(t.akun.keamanan.toastAuthPrefsFailed);
+            toastApiError(err, t, t.akun.keamanan.toastAuthPrefsFailed);
           },
         },
       );
@@ -1128,7 +1133,8 @@ export function KeamananBody() {
                 revokeDevice(id, {
                   onSuccess: () =>
                     toast.success(t.deviceUnlock.toastRevokeSuccess),
-                  onError: () => toast.error(t.deviceUnlock.toastRevokeFailed),
+                  onError: (err) =>
+                    toastApiError(err, t, t.deviceUnlock.toastRevokeFailed),
                 });
               }}
             >
@@ -1396,9 +1402,9 @@ function usePrivacyPrefToggle() {
             });
             toast.success(t.akun.privasi.toastPrefsSaved);
           },
-          onError: () => {
+          onError: (err) => {
             setOverrides((o) => ({ ...o, [key]: previous }));
-            toast.error(t.akun.privasi.toastPrefsFailed);
+            toastApiError(err, t, t.akun.privasi.toastPrefsFailed);
           },
         },
       );
@@ -1448,9 +1454,9 @@ function useNotifPrefToggle() {
             });
             toast.success(t.akun.notifSetting.toastSaved);
           },
-          onError: () => {
+          onError: (err) => {
             setOverrides((o) => ({ ...o, [key]: previous }));
-            toast.error(t.akun.notifSetting.toastFailed);
+            toastApiError(err, t, t.akun.notifSetting.toastFailed);
           },
         },
       );
@@ -1570,8 +1576,8 @@ export function PengaturanBody({
       });
       toast.success(t.akun.pengaturan.toastCurrencyUpdated);
     },
-    onError: () => {
-      toast.error(t.akun.pengaturan.toastCurrencyFailed);
+    onError: (err) => {
+      toastApiError(err, t, t.akun.pengaturan.toastCurrencyFailed);
     },
   });
 
@@ -1599,7 +1605,8 @@ export function PengaturanBody({
           goldPriceField.reset();
           toast.success(t.akun.pengaturan.toastGoldPriceUpdated);
         },
-        onError: () => toast.error(t.akun.pengaturan.toastGoldPriceFailed),
+        onError: (err) =>
+          toastApiError(err, t, t.akun.pengaturan.toastGoldPriceFailed),
       },
     );
   }
@@ -1613,7 +1620,8 @@ export function PengaturanBody({
           setAiKeyInput("");
           toast.success(t.akun.pengaturan.toastAiKeySaved);
         },
-        onError: () => toast.error(t.akun.pengaturan.toastAiKeySaveFailed),
+        onError: (err) =>
+          toastApiError(err, t, t.akun.pengaturan.toastAiKeySaveFailed),
       },
     );
   }
@@ -1621,7 +1629,8 @@ export function PengaturanBody({
   function removeAiKey() {
     deleteAiKey(undefined, {
       onSuccess: () => toast.success(t.akun.pengaturan.toastAiKeyRemoved),
-      onError: () => toast.error(t.akun.pengaturan.toastAiKeyRemoveFailed),
+      onError: (err) =>
+        toastApiError(err, t, t.akun.pengaturan.toastAiKeyRemoveFailed),
     });
   }
 
@@ -1645,8 +1654,8 @@ export function PengaturanBody({
       link.remove();
       URL.revokeObjectURL(url);
       toast.success(t.akun.privasi.toastExportSuccess);
-    } catch {
-      toast.error(t.akun.privasi.toastExportFailed);
+    } catch (err) {
+      toastApiError(err, t, t.akun.privasi.toastExportFailed);
     }
   }
 
@@ -1660,8 +1669,8 @@ export function PengaturanBody({
         method: "DELETE",
         token: session?.accessToken,
       });
-    } catch {
-      toast.error(t.akun.privasi.toastDeleteFailed);
+    } catch (err) {
+      toastApiError(err, t, t.akun.privasi.toastDeleteFailed);
       return;
     }
     toast.success(t.akun.privasi.toastDeleteSuccess);
@@ -2176,8 +2185,12 @@ export function PengaturanBody({
                     updateReligion(religion, {
                       onSuccess: () =>
                         toast.success(t.akun.pengaturan.toastReligionUpdated),
-                      onError: () =>
-                        toast.error(t.akun.pengaturan.toastReligionFailed),
+                      onError: (err) =>
+                        toastApiError(
+                          err,
+                          t,
+                          t.akun.pengaturan.toastReligionFailed,
+                        ),
                     });
                   }}
                 >
@@ -2331,7 +2344,7 @@ export function NotifSettingBody() {
       });
       toast.success(t.akun.notifSetting.toastSaved);
     },
-    onError: () => toast.error(t.akun.notifSetting.toastFailed),
+    onError: (err) => toastApiError(err, t, t.akun.notifSetting.toastFailed),
   });
 
   function save() {
@@ -2458,8 +2471,8 @@ export function PrivasiBody() {
       link.remove();
       URL.revokeObjectURL(url);
       toast.success(t.akun.privasi.toastExportSuccess);
-    } catch {
-      toast.error(t.akun.privasi.toastExportFailed);
+    } catch (err) {
+      toastApiError(err, t, t.akun.privasi.toastExportFailed);
     }
   }
 
@@ -2471,8 +2484,8 @@ export function PrivasiBody() {
     if (!confirmed) return;
     try {
       await apiFetch("/users/me/gdpr/account", { method: "DELETE", token });
-    } catch {
-      toast.error(t.akun.privasi.toastDeleteFailed);
+    } catch (err) {
+      toastApiError(err, t, t.akun.privasi.toastDeleteFailed);
       return;
     }
     toast.success(t.akun.privasi.toastDeleteSuccess);
@@ -3205,8 +3218,8 @@ function CategoryLimitForm({
       });
       toast.success(t.akun.family.categoryLimitSaved);
       onClose();
-    } catch {
-      toast.error(t.akun.family.categoryLimitSaveFailed);
+    } catch (err) {
+      toastApiError(err, t, t.akun.family.categoryLimitSaveFailed);
     } finally {
       setIsSaving(false);
     }
@@ -3361,8 +3374,8 @@ export function ThresholdForm({
       });
       toast.success(t.akun.family.thresholdSaved);
       onClose();
-    } catch {
-      toast.error(t.akun.family.thresholdSaveFailed);
+    } catch (err) {
+      toastApiError(err, t, t.akun.family.thresholdSaveFailed);
     } finally {
       setIsSaving(false);
     }
@@ -3772,8 +3785,8 @@ export default function AkunPage() {
       });
       toast.success(t.akun.crud.profileSaved);
     },
-    onError: () => {
-      toast.error(t.akun.crud.profileSaveFailed);
+    onError: (err) => {
+      toastApiError(err, t, t.akun.crud.profileSaveFailed);
     },
   });
 
@@ -3803,13 +3816,13 @@ export default function AkunPage() {
     }
     avatarUpload.mutate(file, {
       onSuccess: () => toast.success(t.akun.avatar.updated),
-      onError: (err) => toast.error(err.message || t.akun.avatar.uploadFailed),
+      onError: (err) => toastApiError(err, t, t.akun.avatar.uploadFailed),
     });
   }
   function removeAvatar() {
     avatarRemove.mutate(undefined, {
       onSuccess: () => toast.success(t.akun.avatar.removed),
-      onError: () => toast.error(t.akun.avatar.removeFailed),
+      onError: (err) => toastApiError(err, t, t.akun.avatar.removeFailed),
     });
   }
   const displayInitials =
@@ -3883,7 +3896,7 @@ export default function AkunPage() {
       // EPIC-022 A1 — surface the server's real validation message (e.g.
       // "email must be an email", a duplicate-invitation 409) instead of the
       // generic toast that used to swallow it.
-      toast.error(extractApiErrorMessage(err, t.akun.crud.saveFailed));
+      toastApiError(err, t, t.akun.crud.saveFailed);
     }
   }
 
