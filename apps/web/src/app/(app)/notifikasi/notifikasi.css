@@ -240,3 +240,22 @@
     font-size: var(--wm-type-13);
   }
 }
+
+@layer components {
+  .nf-placeholder {
+    display: inline-block;
+    width: 100%;
+    height: 0.85em;
+    border-radius: 4px;
+    background: var(--muted);
+  }
+  .nf-placeholder--title {
+    width: 9rem;
+  }
+  .nf-placeholder--time {
+    width: 4rem;
+  }
+  .nf-row--loading .nf-ic {
+    background: var(--muted);
+  }
+}

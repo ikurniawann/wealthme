@@ -48,6 +48,13 @@ describe("RingkasanPageLead — display currency picker", () => {
       "JPY (¥)",
       "AUD (A$)",
       "CNY (CN¥)",
+      "GBP (£)",
+      "HKD (HK$)",
+      "MYR (RM)",
+      "THB (฿)",
+      "PHP (₱)",
+      "KRW (₩)",
+      "INR (₹)",
     ]);
   });
 

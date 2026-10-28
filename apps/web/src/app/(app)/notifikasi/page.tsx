@@ -18,6 +18,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { useLocale } from "@/hooks/use-locale";
+import { useViewTransition } from "@/hooks/use-view-transition";
+import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import type { Locale } from "@/i18n";
 import {
   BentoCard,
@@ -149,30 +151,13 @@ function groupByRecency(notifications: NotificationDto[]) {
   return { today, thisWeek, older };
 }
 
-function NotifSkeleton() {
-  return (
-    <div className="flex animate-pulse flex-col gap-4 py-2">
-      {[0, 1, 2].map((i) => (
-        <div key={i} className="flex items-start gap-3 border-b pb-3.5">
-          <div className="size-10 shrink-0 rounded-xl bg-muted" />
-          <div className="flex-1 space-y-2">
-            <div className="h-3 w-2/3 rounded bg-muted" />
-            <div className="h-3 w-full rounded bg-muted" />
-            <div className="h-2.5 w-1/4 rounded bg-muted" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function NotifRow({
   n,
   t,
   locale,
   onMarkRead,
 }: {
-  n: NotificationDto;
+  n: NotificationDto | null;
   t: ReturnType<typeof useLocale>["t"];
   locale: Locale;
   onMarkRead: (id: string) => void;
@@ -182,16 +167,16 @@ function NotifRow({
   // only — the server keeps a per-member receipt, so other family members
   // still see it as new until they read it themselves.
   const markRead = () => {
-    if (!n.isRead) onMarkRead(n.id);
+    if (n && !n.isRead) onMarkRead(n.id);
   };
-  const category = inferNotificationFilter(n);
-  const Icon = n.isRead ? Bell : CATEGORY_ICON[category];
+  const category = n ? inferNotificationFilter(n) : "sistem";
+  const Icon = n?.isRead ? Bell : CATEGORY_ICON[category];
   return (
     <div
-      role={n.isRead ? undefined : "button"}
-      tabIndex={n.isRead ? undefined : 0}
+      role={n && !n.isRead ? "button" : undefined}
+      tabIndex={n && !n.isRead ? 0 : undefined}
       aria-label={
-        n.isRead
+        !n || n.isRead
           ? undefined
           : `${localizeMoneyText(displayNotificationText(n.title), money.format)}: ${t.notifikasi.markOneRead}`
       }
@@ -202,31 +187,47 @@ function NotifRow({
           markRead();
         }
       }}
-      className={cn("nf-row", n.isRead ? "read" : "unread")}
+      aria-hidden={!n || undefined}
+      className={cn(
+        "nf-row",
+        !n ? "nf-row--loading" : n.isRead ? "read" : "unread",
+      )}
     >
       <span className="nf-ic" data-cat={category} aria-hidden="true">
-        <Icon size={18} />
+        {n && <Icon size={18} />}
       </span>
       <span className="nf-body">
         <span className="nf-line block">
           <b>
-            {localizeMoneyText(displayNotificationText(n.title), money.format)}
+            {n ? (
+              localizeMoneyText(displayNotificationText(n.title), money.format)
+            ) : (
+              <span className="nf-placeholder nf-placeholder--title" />
+            )}
           </b>{" "}
           <span>
-            <MoneyText text={displayNotificationText(n.body)} />
+            {n ? (
+              <MoneyText text={displayNotificationText(n.body)} />
+            ) : (
+              <span className="nf-placeholder" />
+            )}
           </span>
         </span>
         <span className="nf-time block">
-          {formatRelativeTime(n.createdAt, t, locale)}
+          {n ? (
+            formatRelativeTime(n.createdAt, t, locale)
+          ) : (
+            <span className="nf-placeholder nf-placeholder--time" />
+          )}
         </span>
       </span>
-      {!n.isRead && (
+      {(!n || !n.isRead) && (
         <span className="nf-side">
           <StatusBadge variant="info" className="nf-new">
-            {t.notifikasi.unreadBadge}
+            {n ? t.notifikasi.unreadBadge : " "}
           </StatusBadge>
           <span className="nf-hint text-primary-strong">
-            {t.notifikasi.markOneRead}
+            {n ? t.notifikasi.markOneRead : " "}
           </span>
         </span>
       )}
@@ -279,6 +280,7 @@ export default function NotifikasiPage() {
   const familyGroupId = session?.familyGroupId;
   const token = session?.accessToken;
   const queryClient = useQueryClient();
+  const transition = useViewTransition();
   const [filter, setFilter] = useState<Filter>("semua");
   const [heroMore, setHeroMore] = useState(false);
 
@@ -297,6 +299,8 @@ export default function NotifikasiPage() {
     },
     enabled: Boolean(familyGroupId) && Boolean(token),
   });
+
+  const showSkeleton = useDelayedLoading(isLoading);
 
   const { data: unreadData } = useQuery<{ count: number }>({
     queryKey: queryKeys.notifications.unreadCount(familyGroupId ?? ""),
@@ -496,7 +500,7 @@ export default function NotifikasiPage() {
             <Segmented
               label={v2.filterLabel}
               value={filter}
-              onChange={setFilter}
+              onChange={(next) => transition(() => setFilter(next))}
               options={FILTER_IDS.map((id) => ({
                 value: id,
                 label: filterLabel(id),
@@ -510,7 +514,27 @@ export default function NotifikasiPage() {
             )}
           </div>
           <div className="nf-groups">
-            {isLoading && <NotifSkeleton />}
+            {isLoading && (
+              <div
+                className="nf-group"
+                role="status"
+                aria-label={t.common.loading}
+                style={{ visibility: showSkeleton ? "visible" : "hidden" }}
+              >
+                <div className="nf-group-title" aria-hidden="true">
+                  <span className="nf-placeholder nf-placeholder--title" />
+                </div>
+                {[0, 1, 2].map((i) => (
+                  <NotifRow
+                    key={i}
+                    n={null}
+                    t={t}
+                    locale={locale}
+                    onMarkRead={onMarkRead}
+                  />
+                ))}
+              </div>
+            )}
             {isError && <p className="nf-empty">{t.notifikasi.errorLoad}</p>}
             {!isLoading && !isError && filtered.length === 0 && (
               <p className="nf-empty">

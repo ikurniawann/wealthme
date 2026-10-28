@@ -589,6 +589,7 @@ export const id = {
       ariaLabel: "Ganti bahasa, saat ini: %s",
     },
     searchDialog: {
+      actionsHeader: "Aksi",
       ariaLabel: "Cari transaksi, rekening bank, menu",
       placeholder: "Cari transaksi, rekening bank, menu...",
       dialogTitle: "Pencarian",

@@ -11,6 +11,7 @@ import { render as rtlRender, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { AccountDto } from "@wealthme/contracts";
+import { ShellProvider } from "@/components/shell/shell-context";
 
 // `./page` imports `auth-compat`, which re-exports the `better-auth` React
 // client (ESM, unparsable by jest without a transform) — mock it before
@@ -66,7 +67,6 @@ jest.mock("../../../components/money/use-fx-snapshot", () => ({
 }));
 
 import DanaPage from "./page";
-import { selectMoneyCurrency } from "@/components/money/money-input.test-utils";
 
 const FAMILY_GROUP_ID = "fg-1";
 const TOKEN = "test-token";
@@ -99,7 +99,13 @@ function Providers({ children }: { children: ReactNode }) {
 }
 
 function render(ui: ReactElement) {
-  return rtlRender(ui, { wrapper: Providers });
+  return rtlRender(ui, {
+    wrapper: ({ children }) => (
+      <ShellProvider>
+        <Providers>{children}</Providers>
+      </ShellProvider>
+    ),
+  });
 }
 
 function buildAccount(overrides: Partial<AccountDto> = {}): AccountDto {
@@ -121,12 +127,31 @@ function buildAccount(overrides: Partial<AccountDto> = {}): AccountDto {
   };
 }
 
+function mockDanaApi(
+  accounts: AccountDto[],
+  afterWrite: AccountDto[] = accounts,
+) {
+  let wrote = false;
+  mockApiFetch.mockImplementation((url: string, options?: RequestInit) => {
+    if (url.endsWith("/members")) return Promise.resolve([]);
+    if (url.endsWith("/accounts")) {
+      if (options?.method === "POST" || options?.method === "PATCH") {
+        wrote = true;
+        return Promise.resolve({ id: "acc-new" });
+      }
+      return Promise.resolve(wrote ? afterWrite : accounts);
+    }
+    return Promise.resolve([]);
+  });
+}
+
 describe("DanaPage — multiple cash accounts as master data (EPIC-021 #3)", () => {
   beforeEach(() => {
     // `resetAllMocks` (not `clearAllMocks`) — `mockResolvedValueOnce` queues
     // from a prior test otherwise survive into the next test's calls.
     jest.resetAllMocks();
     queryClient.clear();
+    mockApiFetch.mockImplementation(() => Promise.resolve([]));
 
     mockUseSessionAuth.mockReturnValue({
       data: {
@@ -140,7 +165,7 @@ describe("DanaPage — multiple cash accounts as master data (EPIC-021 #3)", () 
   it("renders every cash account returned by the API, not just one hardcoded row", async () => {
     // Arrange — two distinct cash accounts (not a single hardcoded "Kas
     // Tunai"), plus one e-wallet to prove the two sections stay separate.
-    mockApiFetch.mockResolvedValue([
+    mockDanaApi([
       buildAccount({ id: "acc-1", name: "Kas Tunai" }),
       buildAccount({ id: "acc-2", name: "Dompet Kerja", balance: "250000" }),
       buildAccount({
@@ -156,7 +181,7 @@ describe("DanaPage — multiple cash accounts as master data (EPIC-021 #3)", () 
     render(<DanaPage />);
 
     // Assert — both cash accounts render (proves plurality, not a single
-    // fixed "Kas Tunai" row), each with its own edit/delete controls.
+    // fixed "Kas Tunai" row), each with its own row action menu.
     expect(
       await screen.findByText("Kas Tunai", { ignore: "svg *, script, style" }),
     ).toBeInTheDocument();
@@ -165,20 +190,26 @@ describe("DanaPage — multiple cash accounts as master data (EPIC-021 #3)", () 
     ).toBeInTheDocument();
     // "GoPay" renders twice for this row (name + institution subtitle).
     expect(screen.getAllByText("GoPay").length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("button", { name: "Ubah" })).toHaveLength(3);
-    expect(screen.getAllByRole("button", { name: "Hapus" })).toHaveLength(3);
+    expect(
+      screen.getByRole("button", { name: "Menu Kas Tunai" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Menu Dompet Kerja" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Menu GoPay" }),
+    ).toBeInTheDocument();
   });
 
-  it("offers a + Tambah action for the cash section, opening an add-cash form", async () => {
+  it("offers a cash action in the empty state and opens the add-cash form", async () => {
     // Arrange
-    mockApiFetch.mockResolvedValue([buildAccount()]);
+    mockDanaApi([]);
     const user = userEvent.setup();
     render(<DanaPage />);
-    await screen.findByText("Kas Tunai", { ignore: "svg *, script, style" });
+    await screen.findByText(/Belum ada kas atau e-wallet/);
 
-    // Act — the cash section's own "+ Tambah" (not the E-Wallet one).
-    const addButtons = screen.getAllByText("+ Tambah");
-    await user.click(addButtons[0]!);
+    // Act — choose the cash-specific empty-state action.
+    await user.click(screen.getByRole("button", { name: "Kas tunai" }));
 
     // Assert — a "Tambah Kas Tunai" dialog opens (the new `cash` CRUD
     // entity), not the e-wallet form.
@@ -190,21 +221,17 @@ describe("DanaPage — multiple cash accounts as master data (EPIC-021 #3)", () 
 
   it("submits a new cash account as type 'cash' via the accounts API", async () => {
     // Arrange
-    mockApiFetch.mockResolvedValueOnce([]); // initial accounts list
+    const savedAccounts = [buildAccount({ id: "acc-new" })];
+    mockDanaApi([], savedAccounts);
     const user = userEvent.setup();
     render(<DanaPage />);
-    await screen.findByText("Belum ada kas tunai.");
-
-    mockApiFetch.mockResolvedValueOnce({ id: "acc-new" }); // POST response
-    mockApiFetch.mockResolvedValueOnce([buildAccount({ id: "acc-new" })]); // refetch
+    await screen.findByText(/Belum ada kas atau e-wallet/);
 
     // Act
-    await user.click(screen.getAllByText("+ Tambah")[0]!);
+    await user.click(screen.getByRole("button", { name: "Kas tunai" }));
     const dialog = within(await screen.findByRole("dialog"));
-    await user.type(
-      dialog.getByPlaceholderText("cth: Kas Tunai, Dompet Kerja"),
-      "Kas Toko",
-    );
+    await user.type(dialog.getByPlaceholderText("Dompet Harian"), "Kas Toko");
+    await user.type(dialog.getByPlaceholderText("0"), "0");
     await user.click(dialog.getByRole("button", { name: /Simpan/i }));
 
     // Assert — the POST body's `type` is "cash", never "ewallet".
@@ -218,23 +245,19 @@ describe("DanaPage — multiple cash accounts as master data (EPIC-021 #3)", () 
 
   it("revisi I — a negative USD cash balance posts the preview + fxInputs", async () => {
     // Arrange
-    mockApiFetch.mockResolvedValueOnce([]); // initial accounts list
+    const savedAccounts = [buildAccount({ id: "acc-new" })];
+    mockDanaApi([], savedAccounts);
     const user = userEvent.setup();
     render(<DanaPage />);
-    await screen.findByText("Belum ada kas tunai.");
-
-    mockApiFetch.mockResolvedValueOnce({ id: "acc-new" }); // POST response
-    mockApiFetch.mockResolvedValueOnce([buildAccount({ id: "acc-new" })]); // refetch
+    await screen.findByText(/Belum ada kas atau e-wallet/);
 
     // Act
-    await user.click(screen.getAllByText("+ Tambah")[0]!);
-    const dialog = within(await screen.findByRole("dialog"));
-    await user.type(
-      dialog.getByPlaceholderText("cth: Kas Tunai, Dompet Kerja"),
-      "Kas Toko",
-    );
-    await selectMoneyCurrency("USD");
-    await userEvent.type(screen.getByLabelText("Saldo Saat Ini"), "-20");
+    await user.click(screen.getByRole("button", { name: "Kas tunai" }));
+    const dialogElement = await screen.findByRole("dialog");
+    const dialog = within(dialogElement);
+    await user.type(dialog.getByPlaceholderText("Dompet Harian"), "Kas Toko");
+    await user.selectOptions(dialog.getAllByRole("combobox")[1]!, "USD");
+    await userEvent.type(screen.getByLabelText("Saldo saat ini"), "-20");
     await user.click(dialog.getByRole("button", { name: /Simpan/i }));
 
     const post = mockApiFetch.mock.calls.find(
@@ -250,27 +273,24 @@ describe("DanaPage — multiple cash accounts as master data (EPIC-021 #3)", () 
 
   it("edits an existing cash account by PATCHing its own id (not creating a new e-wallet)", async () => {
     // Arrange
-    mockApiFetch.mockResolvedValue([
-      buildAccount({ id: "acc-1", name: "Kas Tunai", balance: "500000" }),
-    ]);
+    mockDanaApi(
+      [buildAccount({ id: "acc-1", name: "Kas Tunai", balance: "500000" })],
+      [buildAccount({ id: "acc-1", name: "Kas Tunai Renamed" })],
+    );
     const user = userEvent.setup();
     render(<DanaPage />);
     await screen.findByText("Kas Tunai", { ignore: "svg *, script, style" });
 
-    mockApiFetch.mockResolvedValueOnce({ id: "acc-1" }); // PATCH response
-    mockApiFetch.mockResolvedValueOnce([
-      buildAccount({ id: "acc-1", name: "Kas Tunai Renamed" }),
-    ]); // refetch
-
     // Act
-    await user.click(screen.getAllByRole("button", { name: "Ubah" })[0]!);
+    await user.click(screen.getByRole("button", { name: "Menu Kas Tunai" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Ubah" }));
     const dialog = within(await screen.findByRole("dialog"));
     expect(
-      dialog.getByRole("heading", { name: "Edit Kas Tunai" }),
+      dialog.getByRole("heading", { name: "Ubah Kas Tunai" }),
     ).toBeInTheDocument();
-    expect(
-      dialog.getByPlaceholderText("cth: Kas Tunai, Dompet Kerja"),
-    ).toHaveValue("Kas Tunai");
+    expect(dialog.getByPlaceholderText("Dompet Harian")).toHaveValue(
+      "Kas Tunai",
+    );
     await user.click(dialog.getByRole("button", { name: /Simpan/i }));
 
     // Assert — PATCH targets the existing account id.
@@ -287,20 +307,15 @@ describe("DanaPage — multiple cash accounts as master data (EPIC-021 #3)", () 
   // and round-trip a "-" sign, unlike every other "amount" field (which
   // strips it).
   it("allows typing a negative balance in the add-cash form and submits it signed", async () => {
-    mockApiFetch.mockResolvedValueOnce([]); // initial accounts list
+    const savedAccounts = [buildAccount({ id: "acc-new" })];
+    mockDanaApi([], savedAccounts);
     const user = userEvent.setup();
     render(<DanaPage />);
-    await screen.findByText("Belum ada kas tunai.");
+    await screen.findByText(/Belum ada kas atau e-wallet/);
 
-    mockApiFetch.mockResolvedValueOnce({ id: "acc-new" }); // POST response
-    mockApiFetch.mockResolvedValueOnce([buildAccount({ id: "acc-new" })]); // refetch
-
-    await user.click(screen.getAllByText("+ Tambah")[0]!);
+    await user.click(screen.getByRole("button", { name: "Kas tunai" }));
     const dialog = within(await screen.findByRole("dialog"));
-    await user.type(
-      dialog.getByPlaceholderText("cth: Kas Tunai, Dompet Kerja"),
-      "Kas Toko",
-    );
+    await user.type(dialog.getByPlaceholderText("Dompet Harian"), "Kas Toko");
     // The amount field has no accessible name — it's the sole placeholder="0"
     // input in this dialog.
     await user.type(dialog.getByPlaceholderText("0"), "-50000");
@@ -319,24 +334,23 @@ describe("DanaPage — multiple cash accounts as master data (EPIC-021 #3)", () 
   it("an unrelated edit never resends the balance (it only moves through transactions)", async () => {
     // Arrange — this account already went negative via an over-budget
     // expense transaction (the pre-existing, transaction-driven path).
-    mockApiFetch.mockResolvedValue([
-      buildAccount({ id: "acc-1", name: "Kas Tunai", balance: "-75000" }),
-    ]);
+    mockDanaApi(
+      [buildAccount({ id: "acc-1", name: "Kas Tunai", balance: "-75000" })],
+      [
+        buildAccount({
+          id: "acc-1",
+          name: "Kas Tunai Renamed",
+          balance: "-75000",
+        }),
+      ],
+    );
     const user = userEvent.setup();
     render(<DanaPage />);
     await screen.findByText("Kas Tunai", { ignore: "svg *, script, style" });
 
-    mockApiFetch.mockResolvedValueOnce({ id: "acc-1" }); // PATCH response
-    mockApiFetch.mockResolvedValueOnce([
-      buildAccount({
-        id: "acc-1",
-        name: "Kas Tunai Renamed",
-        balance: "-75000",
-      }),
-    ]); // refetch
-
     // Act — edit the account; the form has no amount field to touch.
-    await user.click(screen.getAllByRole("button", { name: "Ubah" })[0]!);
+    await user.click(screen.getByRole("button", { name: "Menu Kas Tunai" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Ubah" }));
     const dialog = within(await screen.findByRole("dialog"));
     expect(dialog.queryByLabelText("Saldo Saat Ini")).toBeNull();
     await user.click(dialog.getByRole("button", { name: /Simpan/i }));

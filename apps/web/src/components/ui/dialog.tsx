@@ -2,13 +2,15 @@
 
 import * as React from "react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
+import { Drawer as DrawerPrimitive } from "@base-ui/react/drawer";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { XIcon } from "lucide-react";
 
-function Dialog({ ...props }: DialogPrimitive.Root.Props) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />;
+function Dialog({ ...props }: DrawerPrimitive.Root.Props) {
+  return <DrawerPrimitive.Root swipeDirection="down" {...props} />;
 }
 
 function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
@@ -64,66 +66,71 @@ function DialogContent({
   children,
   showCloseButton = true,
   ...props
-}: DialogPrimitive.Popup.Props & {
+}: DrawerPrimitive.Popup.Props & {
   showCloseButton?: boolean;
 }) {
+  const mobile = useMediaQuery("(max-width: 768px)");
   return (
     <DialogPortal>
       <DialogOverlay />
-      <DialogPrimitive.Popup
-        data-slot="dialog-content"
-        className={cn(
-          // EPIC-026 — the prototype's `.dialog` (design-system.css) is the
-          // specification and owns the whole box: width `min(480px, 100% - 2rem)`,
-          // `max-height: 85dvh`, `overflow-y: auto`, popover surface, 1px border,
-          // `var(--radius)`, `var(--shadow-pop)`, 20px padding, and the
-          // `dialog-in` entry animation. Below 768px it becomes a full-width
-          // bottom sheet (`width: 100%`, `18px 18px 0 0` radius, safe-area
-          // padding) — which is why the positioning utilities below are
-          // bottom-anchored on mobile and centred from 769px up, matching the
-          // prototype's own `@media (max-width: 768px)` boundary exactly.
-          //
-          // EPIC-022 Group G (G1) — the bounded height + internal scroll that
-          // used to live here as `max-h-[85dvh] overflow-y-auto` is now
-          // `.dialog`'s own `max-height: 85dvh; overflow-y: auto`, so a dialog
-          // whose body grows with user-added rows still keeps its header and
-          // submit action reachable. `dvh` (not `vh`) for the same reason as
-          // before: `vh` is the fixed layout viewport and ignores mobile browser
-          // chrome, `dvh` tracks the visible one.
-          //
-          // Callers must NOT re-add `p-*`, `max-h-*`, `overflow-*` or plain
-          // `w-*`/`max-w-*`: Tailwind utilities are emitted after the components
-          // layer that holds design-system.css, so any of them silently defeats
-          // the prototype. A non-default width belongs on the `min-[769px]:`
-          // breakpoint (`min-[769px]:w-[min(560px,calc(100%-2rem))]`) so it does
-          // not break the mobile bottom sheet, or should use the prototype's own
-          // `dialog--sm` / `dialog--wide` modifiers where the size matches.
-          "dialog fixed bottom-0 left-1/2 z-[60] -translate-x-1/2 outline-none min-[769px]:top-1/2 min-[769px]:bottom-auto min-[769px]:-translate-y-1/2 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
-          className,
-        )}
-        aria-modal={true}
-        {...props}
-      >
-        {/* First in DOM, absolutely placed top-right: tab order starts at the
+      <DrawerPrimitive.Viewport className="wm-drawer-viewport">
+        <DrawerPrimitive.Popup
+          data-base-ui-swipe-ignore={!mobile || undefined}
+          data-swipe-mobile={mobile || undefined}
+          data-slot="dialog-content"
+          className={cn(
+            // EPIC-026 — the prototype's `.dialog` (design-system.css) is the
+            // specification and owns the whole box: width `min(480px, 100% - 2rem)`,
+            // `max-height: 85dvh`, `overflow-y: auto`, popover surface, 1px border,
+            // `var(--radius)`, `var(--shadow-pop)`, 20px padding, and the
+            // `dialog-in` entry animation. Below 768px it becomes a full-width
+            // bottom sheet (`width: 100%`, `18px 18px 0 0` radius, safe-area
+            // padding) — which is why the positioning utilities below are
+            // bottom-anchored on mobile and centred from 769px up, matching the
+            // prototype's own `@media (max-width: 768px)` boundary exactly.
+            //
+            // EPIC-022 Group G (G1) — the bounded height + internal scroll that
+            // used to live here as `max-h-[85dvh] overflow-y-auto` is now
+            // `.dialog`'s own `max-height: 85dvh; overflow-y: auto`, so a dialog
+            // whose body grows with user-added rows still keeps its header and
+            // submit action reachable. `dvh` (not `vh`) for the same reason as
+            // before: `vh` is the fixed layout viewport and ignores mobile browser
+            // chrome, `dvh` tracks the visible one.
+            //
+            // Callers must NOT re-add `p-*`, `max-h-*`, `overflow-*` or plain
+            // `w-*`/`max-w-*`: Tailwind utilities are emitted after the components
+            // layer that holds design-system.css, so any of them silently defeats
+            // the prototype. A non-default width belongs on the `min-[769px]:`
+            // breakpoint (`min-[769px]:w-[min(560px,calc(100%-2rem))]`) so it does
+            // not break the mobile bottom sheet, or should use the prototype's own
+            // `dialog--sm` / `dialog--wide` modifiers where the size matches.
+            "dialog fixed bottom-0 left-1/2 z-[60] -translate-x-1/2 outline-none min-[769px]:top-1/2 min-[769px]:bottom-auto min-[769px]:-translate-y-1/2 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+            className,
+          )}
+          aria-modal={true}
+          {...props}
+        >
+          {/* First in DOM, absolutely placed top-right: tab order starts at the
             close button, matching where it sits visually. bento.css header
             rules treat `[data-slot="dialog-close"] + *` as the first child. */}
-        {showCloseButton && (
-          <DialogPrimitive.Close
-            data-slot="dialog-close"
-            render={
-              <Button
-                variant="ghost"
-                className="absolute top-3 right-3"
-                size="icon-sm"
-              />
-            }
-          >
-            <XIcon />
-            <span className="sr-only">Tutup dialog</span>
-          </DialogPrimitive.Close>
-        )}
-        {children}
-      </DialogPrimitive.Popup>
+          {showCloseButton && (
+            <DialogPrimitive.Close
+              data-slot="dialog-close"
+              render={
+                <Button
+                  variant="ghost"
+                  className="absolute top-3 right-3"
+                  size="icon-sm"
+                />
+              }
+            >
+              <XIcon />
+              <span className="sr-only">Tutup dialog</span>
+            </DialogPrimitive.Close>
+          )}
+          {children}
+        </DrawerPrimitive.Popup>
+      </DrawerPrimitive.Viewport>
     </DialogPortal>
   );
 }
@@ -162,26 +169,31 @@ function PanelContent({
   variant = "side",
   size = "md",
   ...props
-}: DialogPrimitive.Popup.Props & {
+}: DrawerPrimitive.Popup.Props & {
   variant?: "side" | "sheet";
   size?: "md" | "lg";
 }) {
+  const mobile = useMediaQuery("(max-width: 720px)");
   return (
     <DialogPortal>
       <DialogOverlay className="wm-overlay bg-[rgb(14_18_8_/_0.42)] supports-backdrop-filter:backdrop-blur-[3px]" />
-      <DialogPrimitive.Popup
-        data-slot="panel-content"
-        className={cn(
-          "dialog wm-panel",
-          variant === "side" ? "wm-panel--side" : "wm-panel--sheet",
-          size === "lg" && "wm-panel--lg",
-          className,
-        )}
-        aria-modal={true}
-        {...props}
-      >
-        {children}
-      </DialogPrimitive.Popup>
+      <DrawerPrimitive.Viewport className="wm-drawer-viewport">
+        <DrawerPrimitive.Popup
+          data-base-ui-swipe-ignore={!mobile || undefined}
+          data-swipe-mobile={mobile || undefined}
+          data-slot="panel-content"
+          className={cn(
+            "dialog wm-panel",
+            variant === "side" ? "wm-panel--side" : "wm-panel--sheet",
+            size === "lg" && "wm-panel--lg",
+            className,
+          )}
+          aria-modal={true}
+          {...props}
+        >
+          {children}
+        </DrawerPrimitive.Popup>
+      </DrawerPrimitive.Viewport>
     </DialogPortal>
   );
 }

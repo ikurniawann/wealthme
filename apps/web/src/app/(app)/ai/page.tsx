@@ -340,6 +340,7 @@ export default function AiPage() {
                   <button
                     type="button"
                     className="ai-hist-del"
+                    disabled={isStreaming}
                     onClick={() => void handleDeleteConversation(c.id)}
                     aria-label={`${t.ai.historyDeleteAriaLabel}: ${c.title}`}
                   >

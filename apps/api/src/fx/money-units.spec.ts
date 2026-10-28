@@ -35,11 +35,26 @@ describe("parseScaled / parseMinor — revisi I", () => {
     expect(parseMinor("0.01", "USD")).toBe(1n);
   });
 
-  it("isFxCurrency accepts exactly the 7 supported codes", () => {
+  it("isFxCurrency accepts exactly the supported currency codes", () => {
     expect(
-      ["IDR", "USD", "SGD", "EUR", "JPY", "AUD", "CNY"].every(isFxCurrency),
+      [
+        "IDR",
+        "USD",
+        "SGD",
+        "EUR",
+        "JPY",
+        "AUD",
+        "CNY",
+        "GBP",
+        "HKD",
+        "MYR",
+        "THB",
+        "PHP",
+        "KRW",
+        "INR",
+      ].every(isFxCurrency),
     ).toBe(true);
-    expect(isFxCurrency("GBP")).toBe(false);
+    expect(isFxCurrency("ZZZ")).toBe(false);
     expect(isFxCurrency("usd")).toBe(false);
   });
 });
